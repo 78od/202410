@@ -1,93 +1,268 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
   <head>
-
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>欧弟看片</title>
-
     <style>
+      :root {
+        --bg: #080808;
+        --panel: #151515;
+        --panel-2: #1e1e1e;
+        --line: rgba(255,255,255,0.12);
+        --text: #f3f3f3;
+        --muted: #bfbfbf;
+        --accent: #5aa9ff;
+        --accent-2: #7fdbff;
+        --gold: #f7d67a;
+      }
+
+      * { box-sizing: border-box; }
+
       body {
-        background: black;
-        color: white;
+        margin: 0;
+        background: radial-gradient(circle at top, #151515 0%, var(--bg) 35%, #030303 100%);
+        color: var(--text);
+        font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
       }
 
-      a {
-        color: blue;
+      .container {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 28px 18px 60px;
       }
 
-      .p1size{
-        margin-left: 35%;
-        width: 30%;
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+        padding: 12px 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255,255,255,0.02);
       }
 
-      .p2size{
-        margin-left:14vw;
-        width:15%;
+      .brand {
+        font-size: clamp(1.4rem, 2.5vw, 2.1rem);
+        font-weight: 700;
+        letter-spacing: 2px;
       }
 
-      .p3size{
-        margin-left:40%;
-        width:20%;
+      .badge {
+        color: var(--gold);
+        font-size: 0.9rem;
+        border: 1px solid rgba(247,214,122,0.5);
+        border-radius: 999px;
+        padding: 6px 12px;
+        background: rgba(247,214,122,0.08);
       }
 
-      .li1{
-        display:inline;
-        margin-left:14vw;
-        font-size: 9vw;
+      .hero {
+        text-align: center;
+        margin: 10px 0 28px;
+      }
+
+      .hero h1 {
+        margin: 0 0 12px;
+        font-size: clamp(2rem, 5vw, 5rem);
+      }
+
+      .hero .sub {
+        color: var(--muted);
+        font-size: clamp(1rem, 2vw, 1.4rem);
+      }
+
+      .feature {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 24px;
+        align-items: center;
+        margin: 24px 0 30px;
+      }
+
+      .card {
+        background: linear-gradient(180deg, rgba(30,30,30,0.96), rgba(18,18,18,0.96));
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+      }
+
+      .main-link {
+        display: block;
+        text-decoration: none;
+        color: var(--text);
+      }
+
+      .main-image {
+        display: block;
+        width: min(100%, 520px);
+        margin: 0 auto 14px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+      }
+
+      .main-link h2 {
+        margin: 0;
+        text-align: center;
+        font-size: clamp(1.7rem, 3vw, 3.5rem);
+        color: var(--accent-2);
+      }
+
+      .music-box {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: center;
+        justify-content: center;
       }
 
       .rotate {
-        width: 150px;
-        /* 动画名 时长 匀速 无限循环 */
+        width: 140px;
+        border-radius: 50%;
+        border: 2px solid rgba(122, 204, 255, 0.6);
         animation: spin 2s linear infinite;
       }
 
-      /* 定义关键帧：从 0° 转到 360° */
       @keyframes spin {
-        from {
-            transform: rotate(0deg);
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      audio {
+        width: 100%;
+      }
+
+      .music-tip {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .lists {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+        gap: 18px;
+        margin-top: 24px;
+      }
+
+      .list-card {
+        padding: 20px 18px;
+      }
+
+      .list-card h3 {
+        margin: 0 0 16px;
+        font-size: clamp(1.4rem, 2vw, 2rem);
+        color: var(--accent);
+      }
+
+      .list-card ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .list-card li {
+        list-style: none;
+      }
+
+      .list-card a {
+        display: inline-block;
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 1.3rem;
+        font-weight: 600;
+      }
+
+      .mini-gallery {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-top: 24px;
+      }
+
+      .mini-gallery img {
+        width: 160px;
+        height: 160px;
+        object-fit: cover;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      @media (max-width: 760px) {
+        .feature,
+        .lists {
+          grid-template-columns: 1fr;
         }
-        to {
-            transform: rotate(360deg);
+
+        .topbar {
+          flex-direction: column;
+          align-items: flex-start;
         }
       }
     </style>
-
   </head>
   <body>
-    <h1 style="font-size:500;">今日更新：稳定性与背景</h1>
-    <h1 style="text-align: center; font-size:1000;">镇站之宝</h1>
-    <br>
-    <a href="/202410/html/dyh.html" target="_blank">
-      <img src="/202410/Photos/dyh.png" alt="图片撸多了没加载出来" class="p1size">
-      <br>
-      <h1 style="text-align: center; font-size:1000;">戴哥</h1>
-    </a>
-    <br>
-    <br>
-    <img src="/202410/Photos/dyh3.jpg" alt="图片撸多了没加载出来" class="rotate p3size">
-    <audio src="/202410/music/忘川彼岸.mp3" controls loop></audio>
-    <span style="white-space: nowrap"><--点击此处打开背景音乐“张咪咪点歌”</span>
-    <br>
-    <a href="/202410/html/NO.sm.html" target="_blank">
-      <h1 style="font-size:1000;">思冯榜</h1>
-    </a>
-    <br>
-    <a href="/202410/html/NO.jp.html" target="_blank">
-      <h1 style="font-size:1000;">极品榜</h1>
-    </a>
-    <br>
-    <a href="/202410/html/gzh.html" target="_blank">
-      <img src="/202410/Photos/gzh.png" alt="图片撸多了没加载出来" class="p2size">
-    </a>
-      <img src="" alt="图片撸多了没加载出来" class="p2size">
-      <img src="" alt="图片撸多了没加载出来" class="p2size">
-      <br>
-      <ul>
-        <a href="/202410/html/gzh.html" target="_blank">
-          <li class="li1">gzh</li>
-        </a>
-        <li class="li1">ozh</li>
-        <li class="li1">zcy</li>
-      </u>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand">欧弟看片</div>
+        <div class="badge">今日更新：稳定性与背景</div>
+      </div>
+
+      <div class="hero">
+        <h1>镇站之宝</h1>
+        <div class="sub">精选合集 · 现场热度 · 特色榜单</div>
+      </div>
+
+      <div class="feature">
+        <div class="card">
+          <a class="main-link" href="/202410/html/dyh.html" target="_blank">
+            <img class="main-image" src="/202410/Photos/dyh.png" alt="戴哥" />
+            <h2>戴哥</h2>
+          </a>
+        </div>
+
+        <div class="card music-box">
+          <img class="rotate" src="/202410/Photos/dyh3.jpg" alt="旋转图" />
+          <audio src="/202410/music/忘川彼岸.mp3" controls loop></audio>
+          <div class="music-tip">点击此处打开背景音乐“张咪咪点歌”</div>
+        </div>
+      </div>
+
+      <div class="lists">
+        <div class="card list-card">
+          <h3>思冯榜</h3>
+          <ul>
+            <li><a href="/202410/html/NO.sm.html" target="_blank">进入榜单</a></li>
+          </ul>
+        </div>
+
+        <div class="card list-card">
+          <h3>极品榜</h3>
+          <ul>
+            <li><a href="/202410/html/NO.jp.html" target="_blank">进入榜单</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 22px;">
+        <div class="mini-gallery">
+          <a href="/202410/html/gzh.html" target="_blank">
+            <img src="/202410/Photos/gzh.png" alt="郭泽豪" />
+          </a>
+          <img src="" alt="占位图" />
+          <img src="" alt="占位图" />
+        </div>
+      </div>
+    </div>
   </body>
 </html>
