@@ -3,75 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>思冯榜</title>
-    <style>
-      :root {
-        --bg: #090909;
-        --line: rgba(255,255,255,0.1);
-        --text: #f3f3f3;
-        --accent: #5aa9ff;
-      }
-
-      * { box-sizing: border-box; }
-
-      body {
-        margin: 0;
-        min-height: 100vh;
-        background: radial-gradient(circle at top, #1a1a1a 0%, #090909 60%, #040404 100%);
-        color: var(--text);
-        font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-      }
-
-      .wrap {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 24px 18px 48px;
-      }
-
-      .back-btn {
-        display: inline-block;
-        margin-bottom: 20px;
-        padding: 10px 18px;
-        background: rgba(90, 169, 255, 0.12);
-        border: 1px solid rgba(90, 169, 255, 0.7);
-        border-radius: 999px;
-        color: var(--accent);
-        text-decoration: none;
-        font-weight: 700;
-      }
-
-      .card {
-        background: linear-gradient(180deg, rgba(22, 22, 22, 0.96), rgba(12,12,12,0.96));
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        box-shadow: 0 18px 40px rgba(0,0,0,0.35);
-        padding: 28px 18px;
-      }
-
-      h1 {
-        margin: 0 0 20px;
-        font-size: clamp(2rem, 4vw, 3.2rem);
-      }
-
-      ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-
-      li {
-        padding: 11px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.06);
-        font-size: clamp(1.1rem, 2vw, 1.9rem);
-      }
-    </style>
+    <link rel="stylesheet" href="../css/style.css" />
   </head>
   <body>
     <div class="wrap">
       <a href="../index.html" class="back-btn">← 返回上一级</a>
-      <div class="card">
+      <div class="card ranking-card">
         <h1>10班思冯之人</h1>
-        <ul>
+        <ul class="ranking-list">
           <li>NO.01 || 30号：班长</li>
           <li>NO.02 || 58号：日本狗</li>
           <li>NO.03 || 20号：10班最乖之人</li>
@@ -80,7 +19,7 @@
           <li>......</li>
           <li>NO.60 || 13号：吴彦祖本人</li>
         </ul>
-        <h1 style="margin-top: 24px;">持续更新</h1>
+        <h1 class="update-title">持续更新</h1>
       </div>
     </div>
   </body>
