@@ -1,20 +1,36 @@
+/*
+ * 全站设计变量
+ * 集中管理颜色、内容宽度等基础配置。修改这些变量即可同步调整所有页面的整体风格。
+ */
 :root {
+  /* 页面最深层背景色 */
   --bg: #080808;
+  /* 卡片的主要背景色 */
   --panel: rgba(20, 20, 20, 0.96);
+  /* 卡片的第二层背景色，用于制造由上到下的层次 */
   --panel-deep: rgba(12, 12, 12, 0.96);
+  /* 边框和分隔线的半透明颜色 */
   --line: rgba(255, 255, 255, 0.12);
+  /* 页面主要文字颜色 */
   --text: #f3f3f3;
+  /* 次要文字颜色，例如提示文字和原价文字 */
   --muted: #c9c9c9;
+  /* 全站主要强调色，用于链接和按钮 */
   --accent: #5aa9ff;
+  /* 更明亮的强调色，用于首页主标题 */
   --accent-light: #7fdbff;
+  /* 金色强调色，用于价格、警告和更新提示 */
   --gold: #f4c95d;
+  /* 内容页的默认最大宽度，首页会通过 .home-page 覆盖 */
   --content-width: 920px;
 }
 
+/* 统一盒模型，避免 padding 和 border 使元素实际尺寸超出预期 */
 * {
   box-sizing: border-box;
 }
 
+/* 全站页面基础样式 */
 body {
   min-height: 100vh;
   margin: 0;
@@ -23,15 +39,22 @@ body {
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
+/* 链接默认使用全站强调色；各页面可在更具体的选择器中覆盖 */
 a {
   color: var(--accent);
 }
 
+/* 图片默认作为块级元素显示，并限制在父容器宽度内 */
 img {
   display: block;
   max-width: 100%;
 }
 
+/*
+ * 页面外层容器
+ * .wrap 用于详情页和榜单页，.container 用于首页。
+ * width 使用 calc 预留移动端左右间距，max-width 控制桌面端阅读宽度。
+ */
 .container,
 .wrap {
   width: min(100% - 36px, var(--content-width));
@@ -39,10 +62,12 @@ img {
   padding: 24px 0 48px;
 }
 
+/* 首页需要比内容页更宽的展示区域 */
 .container {
   max-width: 1180px;
 }
 
+/* 所有内容卡片的统一外观 */
 .card {
   padding: 28px 18px;
   background: linear-gradient(180deg, var(--panel), var(--panel-deep));
@@ -51,6 +76,7 @@ img {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
+/* 内容页返回首页的按钮 */
 .back-btn {
   display: inline-block;
   margin-bottom: 20px;
@@ -64,17 +90,21 @@ img {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* 鼠标悬停和键盘聚焦时提供轻微上浮反馈 */
 .back-btn:hover,
 .back-btn:focus-visible {
   transform: translateY(-1px);
   box-shadow: 0 10px 22px rgba(90, 169, 255, 0.2);
 }
 
-/* Home page */
+/* ==================== 首页 ==================== */
+
+/* 首页使用更宽的内容区域 */
 .home-page {
   --content-width: 1180px;
 }
 
+/* 顶部品牌栏：左侧显示站点名称，右侧显示更新提示 */
 .topbar {
   display: flex;
   align-items: center;
@@ -87,12 +117,14 @@ img {
   border-radius: 16px;
 }
 
+/* 站点名称 */
 .brand {
   font-size: clamp(1.4rem, 2.5vw, 2.1rem);
   font-weight: 700;
   letter-spacing: 2px;
 }
 
+/* 顶部更新提示标签 */
 .badge {
   padding: 6px 12px;
   color: var(--gold);
@@ -102,39 +134,46 @@ img {
   border-radius: 999px;
 }
 
+/* 首页主标题区域 */
 .hero {
   margin: 10px 0 28px;
   text-align: center;
 }
 
+/* 使用 clamp 让标题在手机和桌面端都保持合适大小 */
 .hero h1 {
   margin: 0 0 12px;
   font-size: clamp(2rem, 5vw, 5rem);
 }
 
+/* 主标题下方的补充说明 */
 .hero .sub {
   color: var(--muted);
   font-size: clamp(1rem, 2vw, 1.4rem);
 }
 
+/* 首页的主展示区和榜单区都使用 CSS Grid 布局 */
 .feature,
 .lists {
   display: grid;
   gap: 24px;
 }
 
+/* 主展示区左侧为图片链接，右侧为音乐播放器 */
 .feature {
   grid-template-columns: 1.2fr 0.8fr;
   align-items: center;
   margin: 24px 0 30px;
 }
 
+/* 将整张主图卡片设置为可点击链接 */
 .main-link {
   display: block;
   color: var(--text);
   text-decoration: none;
 }
 
+/* 首页主图的最大宽度和边框 */
 .main-image {
   width: min(100%, 520px);
   margin: 0 auto 14px;
@@ -142,6 +181,7 @@ img {
   border-radius: 16px;
 }
 
+/* 主图下方的名称 */
 .main-link h2 {
   margin: 0;
   color: var(--accent-light);
@@ -149,6 +189,7 @@ img {
   text-align: center;
 }
 
+/* 音乐卡片中的图片、播放器和说明文字垂直排列 */
 .music-box {
   display: flex;
   flex-direction: column;
@@ -157,6 +198,7 @@ img {
   gap: 14px;
 }
 
+/* 音乐装饰图片持续旋转，增强播放器区域的动态感 */
 .rotate {
   width: 140px;
   border: 2px solid rgba(122, 204, 255, 0.6);
@@ -164,31 +206,37 @@ img {
   animation: spin 2s linear infinite;
 }
 
+/* 播放器占满音乐卡片的可用宽度 */
 audio {
   width: 100%;
 }
 
+/* 播放器下方的操作提示 */
 .music-tip {
   color: var(--muted);
   font-size: 0.95rem;
   text-align: center;
 }
 
+/* 两个榜单入口在桌面端并排显示 */
 .lists {
   grid-template-columns: repeat(2, minmax(220px, 1fr));
   margin-top: 24px;
 }
 
+/* 榜单入口卡片的内边距略小于普通内容卡片 */
 .list-card {
   padding: 20px 18px;
 }
 
+/* 榜单名称 */
 .list-card h3 {
   margin: 0 0 16px;
   color: var(--accent);
   font-size: clamp(1.4rem, 2vw, 2rem);
 }
 
+/* 清除列表默认样式，并统一入口之间的垂直间距 */
 .list-card ul,
 .ranking-list {
   display: flex;
@@ -199,6 +247,7 @@ audio {
   list-style: none;
 }
 
+/* 首页榜单入口链接 */
 .list-card a {
   display: inline-block;
   color: var(--accent);
@@ -207,10 +256,12 @@ audio {
   text-decoration: none;
 }
 
+/* 首页底部图片区域与上方内容保持间距 */
 .gallery-card {
   margin-top: 22px;
 }
 
+/* 图片缩略图自动换行，保证小屏幕不会横向溢出 */
 .mini-gallery {
   display: flex;
   flex-wrap: wrap;
@@ -219,6 +270,7 @@ audio {
   margin-top: 0;
 }
 
+/* 固定缩略图尺寸，避免图片加载或替换时造成布局跳动 */
 .mini-gallery img {
   width: 160px;
   height: 160px;
@@ -227,31 +279,38 @@ audio {
   border-radius: 16px;
 }
 
-/* Detail and ranking pages */
+/* ==================== 详情页和榜单页 ==================== */
+
+/* 详情卡片和榜单卡片的标题共享底部间距 */
 .detail-card h1,
 .ranking-card h1 {
   margin: 0 0 20px;
 }
 
+/* 详情页标题居中显示 */
 .detail-card h1 {
   text-align: center;
   font-size: clamp(1.8rem, 3vw, 3.2rem);
 }
 
+/* 价格页标题需要更醒目的字号 */
 .price-card h1 {
   font-size: clamp(2rem, 4vw, 4.2rem);
 }
 
+/* 原价使用灰色并添加删除线 */
 .old {
   color: var(--muted);
   text-decoration: line-through;
 }
 
+/* 现价和重要提醒使用金色突出显示 */
 .new,
 .warning {
   color: var(--gold);
 }
 
+/* 详情页图片的通用尺寸、占位高度和边框 */
 .detail-image {
   width: min(100%, 520px);
   min-height: 220px;
@@ -261,33 +320,42 @@ audio {
   border-radius: 16px;
 }
 
+/* 价格图片只需要保留顶部间距，底部间距由通用图片规则提供 */
 .price-image {
   margin-top: 22px;
 }
 
+/* 榜单页标题字号 */
 .ranking-card h1 {
   font-size: clamp(2rem, 4vw, 3.2rem);
 }
 
+/* 覆盖首页列表的间距，让榜单条目使用分隔线连续排列 */
 .ranking-list {
   gap: 0;
 }
 
+/* 每个榜单条目的上下留白和分隔线 */
 .ranking-list li {
   padding: 11px 0;
   font-size: clamp(1.1rem, 2vw, 1.9rem);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* 榜单底部的“持续更新”标题 */
 .update-title {
   margin-top: 24px !important;
 }
 
+/* 音乐装饰图的旋转关键帧 */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
+/* ==================== 移动端适配 ==================== */
+
+/* 屏幕较窄时将首页双栏布局改为单栏，避免内容拥挤 */
 @media (max-width: 760px) {
   .feature,
   .lists {
@@ -295,6 +363,7 @@ audio {
   }
 
   .topbar {
+    /* 顶部品牌栏改为纵向排列，并保持左对齐 */
     flex-direction: column;
     align-items: flex-start;
   }
