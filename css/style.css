@@ -176,6 +176,7 @@ img {
 /* 首页主图的最大宽度和边框 */
 .main-image {
   width: min(100%, 520px);
+  height: auto;
   margin: 0 auto 14px;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -200,7 +201,8 @@ img {
 
 /* 音乐装饰图片持续旋转，增强播放器区域的动态感 */
 .rotate {
-  width: 140px;
+  width: clamp(96px, 35vw, 140px);
+  height: auto;
   border: 2px solid rgba(122, 204, 255, 0.6);
   border-radius: 50%;
   animation: spin 2s linear infinite;
@@ -270,10 +272,17 @@ audio {
   margin-top: 0;
 }
 
-/* 固定缩略图尺寸，避免图片加载或替换时造成布局跳动 */
+.mini-gallery a {
+  flex: 1 1 140px;
+  max-width: 160px;
+  min-width: 0;
+}
+
+/* 缩略图随可用空间缩放，并保持统一的正方形比例 */
 .mini-gallery img {
-  width: 160px;
-  height: 160px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
   object-fit: cover;
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -313,6 +322,7 @@ audio {
 /* 详情页图片的通用尺寸、占位高度和边框 */
 .detail-image {
   width: min(100%, 520px);
+  height: auto;
   min-height: 220px;
   margin: 22px auto;
   background: rgba(255, 255, 255, 0.04);
