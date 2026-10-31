@@ -220,6 +220,30 @@ audio {
   width: 100%;
 }
 
+/* 随机切歌按钮 */
+.random-song-button {
+  padding: 9px 18px;
+  color: var(--accent-light);
+  font: inherit;
+  font-weight: 700;
+  background: rgba(90, 169, 255, 0.12);
+  border: 1px solid rgba(90, 169, 255, 0.7);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.random-song-button:hover:not(:disabled),
+.random-song-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(90, 169, 255, 0.2);
+}
+
+.random-song-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* 播放器下方的操作提示 */
 .music-tip {
   color: var(--muted);

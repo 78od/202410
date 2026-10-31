@@ -1,7 +1,9 @@
 const audio = document.querySelector("#daily-song");
 const title = document.querySelector("#music-title");
+const randomSongButton = document.querySelector("#random-song-button");
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
 const startDay = Date.UTC(2026, 9, 31) / millisecondsPerDay;
+let currentSong;
 const beijingDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
@@ -22,6 +24,7 @@ function getDailyIndex(songCount) {
 
 function showSong(song) {
   const isPlaying = !audio.paused;
+  currentSong = song;
   title.textContent = song.replace(/\.[^.]+$/, "");
   audio.src = `/202410/music/${encodeURIComponent(song)}`;
   audio.load();
@@ -47,6 +50,15 @@ async function loadDailySong() {
 
     let currentDay = getBeijingDay();
     showSong(songs[getDailyIndex(songs.length)]);
+    randomSongButton.disabled = songs.length < 2;
+    randomSongButton.addEventListener("click", () => {
+      const alternatives = songs.filter((song) => song !== currentSong);
+      if (alternatives.length > 0) {
+        const randomSong = alternatives[Math.floor(Math.random() * alternatives.length)];
+        showSong(randomSong);
+      }
+    });
+
     window.setInterval(() => {
       const newDay = getBeijingDay();
       if (newDay !== currentDay) {
