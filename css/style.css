@@ -410,6 +410,31 @@ audio {
   border-radius: 12px;
 }
 
+.photo-gallery-viewer {
+  gap: 18px;
+}
+
+.photo-gallery-viewer .photo-viewer-title {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.photo-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.photo-strip img {
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 270px);
+  object-fit: contain;
+  border-radius: 12px;
+}
+
 /* ==================== 详情页和榜单页 ==================== */
 
 /* 详情卡片和榜单卡片的标题共享底部间距 */
@@ -492,6 +517,14 @@ audio {
   .feature,
   .lists {
     grid-template-columns: 1fr;
+  }
+
+  .photo-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .photo-strip img {
+    max-height: none;
   }
 
   .topbar {
