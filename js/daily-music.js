@@ -1,6 +1,9 @@
 const audio = document.querySelector("#daily-song");
 const title = document.querySelector("#music-title");
 const randomSongButton = document.querySelector("#random-song-button");
+const songSearchInput = document.querySelector("#song-search-input");
+const songSearchResults = document.querySelector("#song-search-results");
+const songSearchStatus = document.querySelector("#song-search-status");
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
 const startDay = Date.UTC(2026, 9, 31) / millisecondsPerDay;
 const todaySong = "我不难过-孙燕姿.mp3";
@@ -37,6 +40,45 @@ function showSong(song) {
   }
 }
 
+function renderSongSearchResults(songs, query) {
+  songSearchResults.replaceChildren();
+  songSearchStatus.textContent = "";
+
+  if (!query) {
+    songSearchResults.hidden = true;
+    return;
+  }
+
+  const normalizedQuery = query.toLocaleLowerCase();
+  const matches = songs.filter((song) =>
+    song.replace(/\.[^.]+$/, "").toLocaleLowerCase().includes(normalizedQuery),
+  );
+
+  songSearchResults.hidden = false;
+  if (matches.length === 0) {
+    songSearchStatus.textContent = "没有找到匹配的歌曲";
+    return;
+  }
+
+  songSearchStatus.textContent = `找到 ${matches.length} 首歌曲`;
+  for (const song of matches) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = song.replace(/\.[^.]+$/, "");
+    button.addEventListener("click", () => {
+      showSong(song);
+      audio.play().catch((error) => {
+        console.warn("歌曲已切换，请点击播放器开始播放。", error);
+      });
+      songSearchInput.value = "";
+      renderSongSearchResults(songs, "");
+    });
+    item.append(button);
+    songSearchResults.append(item);
+  }
+}
+
 async function loadDailySong() {
   try {
     const response = await fetch("/202410/music/playlist.json");
@@ -51,6 +93,10 @@ async function loadDailySong() {
 
     let currentDay = getBeijingDay();
     showSong(currentDay === startDay ? todaySong : songs[getDailyIndex(songs.length, currentDay)]);
+    songSearchInput.disabled = false;
+    songSearchInput.addEventListener("input", () => {
+      renderSongSearchResults(songs, songSearchInput.value.trim());
+    });
     randomSongButton.disabled = songs.length < 2;
     randomSongButton.addEventListener("click", () => {
       const alternatives = songs.filter((song) => song !== currentSong);

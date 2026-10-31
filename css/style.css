@@ -220,6 +220,74 @@ audio {
   width: 100%;
 }
 
+.song-search {
+  width: 100%;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+#song-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  color: var(--text);
+  font: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+#song-search-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.song-search-results {
+  max-height: 220px;
+  margin: 8px 0 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--panel-deep);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.song-search-results li + li {
+  margin-top: 2px;
+}
+
+.song-search-results button {
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.song-search-results button:hover,
+.song-search-results button:focus-visible {
+  color: var(--accent-light);
+  background: rgba(90, 169, 255, 0.12);
+}
+
+.song-search-status {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 /* 随机切歌按钮 */
 .random-song-button {
   padding: 9px 18px;
