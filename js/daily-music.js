@@ -3,6 +3,7 @@ const title = document.querySelector("#music-title");
 const randomSongButton = document.querySelector("#random-song-button");
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
 const startDay = Date.UTC(2026, 9, 31) / millisecondsPerDay;
+const todaySong = "我不难过-孙燕姿.mp3";
 let currentSong;
 const beijingDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "Asia/Shanghai",
@@ -17,8 +18,8 @@ function getBeijingDay() {
   return Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)) / millisecondsPerDay;
 }
 
-function getDailyIndex(songCount) {
-  const daysSinceStart = getBeijingDay() - startDay;
+function getDailyIndex(songCount, day) {
+  const daysSinceStart = day - startDay;
   return ((daysSinceStart % songCount) + songCount) % songCount;
 }
 
@@ -49,7 +50,7 @@ async function loadDailySong() {
     }
 
     let currentDay = getBeijingDay();
-    showSong(songs[getDailyIndex(songs.length)]);
+    showSong(currentDay === startDay ? todaySong : songs[getDailyIndex(songs.length, currentDay)]);
     randomSongButton.disabled = songs.length < 2;
     randomSongButton.addEventListener("click", () => {
       const alternatives = songs.filter((song) => song !== currentSong);
@@ -63,7 +64,7 @@ async function loadDailySong() {
       const newDay = getBeijingDay();
       if (newDay !== currentDay) {
         currentDay = newDay;
-        showSong(songs[getDailyIndex(songs.length)]);
+        showSong(newDay === startDay ? todaySong : songs[getDailyIndex(songs.length, newDay)]);
       }
     }, 60 * 1000);
   } catch (error) {
