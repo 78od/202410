@@ -319,6 +319,42 @@ audio {
   text-align: center;
 }
 
+.standalone-player-link {
+  color: var(--accent);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.standalone-player-link:hover,
+.standalone-player-link:focus-visible {
+  color: var(--accent-light);
+  text-decoration: underline;
+}
+
+.player-page .wrap {
+  max-width: 720px;
+}
+
+.standalone-player-heading {
+  margin: 12px 0 24px;
+  color: var(--accent-light);
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  text-align: center;
+}
+
+.standalone-player {
+  gap: 22px;
+  padding: clamp(24px, 6vw, 48px);
+}
+
+.standalone-player .rotate {
+  width: clamp(150px, 36vw, 240px);
+}
+
+.standalone-player .music-title {
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+}
+
 /* 两个榜单入口在桌面端并排显示 */
 .lists {
   grid-template-columns: repeat(2, minmax(220px, 1fr));
