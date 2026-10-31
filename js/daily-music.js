@@ -41,6 +41,11 @@ function showSong(song) {
   }
 }
 
+function getRandomSong(songs) {
+  const alternatives = songs.filter((song) => song !== currentSong);
+  return alternatives[Math.floor(Math.random() * alternatives.length)];
+}
+
 function renderSongSearchResults(songs, query) {
   songSearchResults.replaceChildren();
   songSearchStatus.textContent = "";
@@ -100,11 +105,19 @@ async function loadDailySong() {
     });
     randomSongButton.disabled = songs.length < 2;
     randomSongButton.addEventListener("click", () => {
-      const alternatives = songs.filter((song) => song !== currentSong);
-      if (alternatives.length > 0) {
-        const randomSong = alternatives[Math.floor(Math.random() * alternatives.length)];
-        showSong(randomSong);
+      if (songs.length > 1) {
+        showSong(getRandomSong(songs));
       }
+    });
+    audio.addEventListener("ended", () => {
+      if (songs.length < 2) {
+        return;
+      }
+
+      showSong(getRandomSong(songs));
+      audio.play().catch((error) => {
+        console.warn("下一首歌曲无法自动播放，请手动点击播放。", error);
+      });
     });
 
     window.setInterval(() => {
