@@ -208,6 +208,13 @@ img {
   animation: spin 2s linear infinite;
 }
 
+.music-title {
+  margin: 0;
+  color: var(--accent-light);
+  font-size: 1.1rem;
+  text-align: center;
+}
+
 /* 播放器占满音乐卡片的可用宽度 */
 audio {
   width: 100%;
