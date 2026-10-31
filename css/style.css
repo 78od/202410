@@ -389,8 +389,17 @@ audio {
 
 .photo-viewer {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   padding: 18px;
+}
+
+.photo-viewer-title {
+  margin: 0 0 18px;
+  color: var(--accent-light);
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  text-align: center;
 }
 
 .photo-viewer-image {
