@@ -4,6 +4,7 @@ const randomSongButton = document.querySelector("#random-song-button");
 const songSearchInput = document.querySelector("#song-search-input");
 const songSearchResults = document.querySelector("#song-search-results");
 const songSearchStatus = document.querySelector("#song-search-status");
+const musicDirectory = new URL("../music/", document.currentScript.src);
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
 const startDay = Date.UTC(2026, 9, 31) / millisecondsPerDay;
 const todaySong = "我不难过-孙燕姿.mp3";
@@ -30,7 +31,7 @@ function showSong(song) {
   const isPlaying = !audio.paused;
   currentSong = song;
   title.textContent = song.replace(/\.[^.]+$/, "");
-  audio.src = `/202410/music/${encodeURIComponent(song)}`;
+  audio.src = new URL(encodeURIComponent(song), musicDirectory).href;
   audio.load();
 
   if (isPlaying) {
@@ -81,7 +82,7 @@ function renderSongSearchResults(songs, query) {
 
 async function loadDailySong() {
   try {
-    const response = await fetch("/202410/music/playlist.json");
+    const response = await fetch(new URL("playlist.json", musicDirectory));
     if (!response.ok) {
       throw new Error(`歌曲清单加载失败：HTTP ${response.status}`);
     }
@@ -118,5 +119,13 @@ async function loadDailySong() {
     console.error(error);
   }
 }
+
+audio.addEventListener("error", () => {
+  title.textContent = "歌曲加载失败，请检查网络或音频文件路径";
+  console.error("音频加载失败", {
+    source: audio.currentSrc,
+    error: audio.error,
+  });
+});
 
 loadDailySong();
