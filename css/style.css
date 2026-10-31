@@ -387,6 +387,20 @@ audio {
   border-radius: 16px;
 }
 
+.photo-viewer {
+  display: flex;
+  justify-content: center;
+  padding: 18px;
+}
+
+.photo-viewer-image {
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 140px);
+  object-fit: contain;
+  border-radius: 12px;
+}
+
 /* ==================== 详情页和榜单页 ==================== */
 
 /* 详情卡片和榜单卡片的标题共享底部间距 */
