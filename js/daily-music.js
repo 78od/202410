@@ -19,8 +19,11 @@ let currentSong;
 let lyricFiles = [];
 let lyricCatalogAvailable = false;
 let currentLyrics = [];
+let lyricScrollPositions = [];
+let activeLyricIndex = -1;
 let lyricRequestId = 0;
 let lyricAnimationFrame = 0;
+let lyricCatalogPromise;
 let favoriteSongs = new Set();
 let favoritesAvailable = true;
 const lyricOverrides = new Map([
@@ -195,15 +198,25 @@ function decodeLyric(buffer) {
 async function loadLyrics(song) {
   const requestId = ++lyricRequestId;
   currentLyrics = [];
+  lyricScrollPositions = [];
+  activeLyricIndex = -1;
   lyricLines.replaceChildren();
-  lyricLines.scrollTop = 0;
+  if (lyricLines.scrollTop !== 0) {
+    lyricLines.scrollTop = 0;
+  }
   lyricLines.hidden = true;
   lyricsStatus.hidden = false;
   lyricsStatus.textContent = "正在载入歌词…";
 
   if (!lyricCatalogAvailable) {
-    lyricsStatus.textContent = "歌词索引加载失败，请检查歌词文件";
-    return;
+    const catalogLoaded = await lyricCatalogPromise;
+    if (requestId !== lyricRequestId) {
+      return;
+    }
+    if (!catalogLoaded) {
+      lyricsStatus.textContent = "歌词索引加载失败，请检查歌词文件";
+      return;
+    }
   }
 
   const match = findLyricFile(song);
@@ -215,7 +228,6 @@ async function loadLyrics(song) {
   try {
     const response = await fetch(
       new URL(encodeURIComponent(match.file), new URL("lyric/", musicDirectory)),
-      { cache: "no-store" },
     );
     if (!response.ok) {
       throw new Error(`歌词加载失败：HTTP ${response.status}`);
@@ -233,6 +245,7 @@ async function loadLyrics(song) {
     }
 
     currentLyrics = entries;
+    const fragment = document.createDocumentFragment();
     for (const entry of entries) {
       const item = document.createElement("li");
       item.className = "lyric-item";
@@ -240,19 +253,18 @@ async function loadLyrics(song) {
       line.className = "lyric-line";
       line.type = "button";
       line.textContent = entry.text;
+      line.dataset.index = String(fragment.childElementCount);
       const minutes = Math.floor(entry.time / 60);
       const seconds = Math.floor(entry.time % 60).toString().padStart(2, "0");
       line.setAttribute("aria-label", `跳转到 ${minutes}:${seconds}：${entry.text}`);
-      line.addEventListener("click", () => {
-        audio.currentTime = entry.time;
-        updateLyricScroll();
-      });
       item.append(line);
-      lyricLines.append(item);
+      fragment.append(item);
     }
+    lyricLines.append(fragment);
     lyricsStatus.hidden = true;
     lyricsStatus.textContent = "";
     lyricLines.hidden = false;
+    refreshLyricScrollPositions();
     updateLyricScroll();
   } catch (error) {
     if (requestId === lyricRequestId) {
@@ -260,6 +272,17 @@ async function loadLyrics(song) {
     }
     console.error("歌词加载失败", { song, lyricFile: match.file, error });
   }
+}
+
+function refreshLyricScrollPositions() {
+  lyricScrollPositions = Array.from(lyricLines.children, (item) =>
+    Math.max(
+      0,
+      item.offsetTop -
+        lyricLines.offsetTop -
+        (lyricLines.clientHeight - item.offsetHeight) / 2,
+    ),
+  );
 }
 
 function updateLyricScroll() {
@@ -280,45 +303,58 @@ function updateLyricScroll() {
 
   const activeIndex = low - 1;
   if (activeIndex < 0) {
-    const previousLine = lyricLines.querySelector(".is-active");
+    if (activeLyricIndex >= 0) {
+      const previousLine = lyricLines.children[activeLyricIndex]?.firstElementChild;
+      previousLine?.classList.remove("is-active");
+      previousLine?.removeAttribute("aria-current");
+      activeLyricIndex = -1;
+    }
+    lyricLines.scrollTop = 0;
+    return;
+  }
+
+  if (activeIndex !== activeLyricIndex) {
+    const previousLine = lyricLines.children[activeLyricIndex]?.firstElementChild;
     previousLine?.classList.remove("is-active");
     previousLine?.removeAttribute("aria-current");
-    if (previousLine) {
-      lyricLines.scrollTo({ top: 0, behavior: "auto" });
+    const activeLine = lyricLines.children[activeIndex]?.firstElementChild;
+    if (!activeLine) {
+      return;
     }
-    return;
-  }
-
-  const activeItem = lyricLines.children[activeIndex];
-  const activeLine = activeItem?.querySelector(".lyric-line");
-  if (!activeLine) {
-    return;
-  }
-
-  if (!activeLine.classList.contains("is-active")) {
-    lyricLines.querySelector(".is-active")?.classList.remove("is-active");
-    lyricLines.querySelector('[aria-current="true"]')?.removeAttribute("aria-current");
     activeLine.classList.add("is-active");
     activeLine.setAttribute("aria-current", "true");
+    activeLyricIndex = activeIndex;
   }
 
-  const getCenteredScrollTop = (line) =>
-    line.offsetTop -
-    lyricLines.offsetTop -
-    (lyricLines.clientHeight - line.offsetHeight) / 2;
-  const nextIndex = activeIndex + 1;
-  const nextItem = lyricLines.children[nextIndex];
-  let scrollTop = getCenteredScrollTop(activeItem);
-
-  if (nextItem) {
+  let scrollTop = lyricScrollPositions[activeIndex];
+  if (activeIndex + 1 < lyricScrollPositions.length) {
     const activeTime = currentLyrics[activeIndex].time;
-    const nextTime = currentLyrics[nextIndex].time;
+    const nextTime = currentLyrics[activeIndex + 1].time;
     const progress = Math.min(1, Math.max(0, (audio.currentTime - activeTime) / (nextTime - activeTime)));
-    scrollTop += (getCenteredScrollTop(nextItem) - scrollTop) * progress;
+    scrollTop += (lyricScrollPositions[activeIndex + 1] - scrollTop) * progress;
   }
 
   lyricLines.scrollTop = Math.max(0, scrollTop);
 }
+
+lyricLines.addEventListener("click", (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+
+  const line = event.target.closest(".lyric-line");
+  if (!line || !lyricLines.contains(line)) {
+    return;
+  }
+
+  const entry = currentLyrics[Number(line.dataset.index)];
+  if (entry) {
+    audio.currentTime = entry.time;
+    updateLyricScroll();
+  }
+});
+
+window.addEventListener("resize", refreshLyricScrollPositions);
 
 function animateLyricScroll() {
   lyricAnimationFrame = 0;
@@ -479,8 +515,9 @@ function renderSongSearchResults(songs, query) {
 }
 
 async function loadDailySong() {
+  lyricCatalogPromise = loadLyricCatalog();
   try {
-    const response = await fetch(new URL("playlist.json", musicDirectory), { cache: "no-store" });
+    const response = await fetch(new URL("playlist.json", musicDirectory));
     if (!response.ok) {
       throw new Error(`歌曲清单加载失败：HTTP ${response.status}`);
     }
@@ -488,24 +525,6 @@ async function loadDailySong() {
     const songs = await response.json();
     if (!Array.isArray(songs) || songs.length === 0 || songs.some((song) => typeof song !== "string")) {
       throw new Error("歌曲清单格式无效或为空");
-    }
-
-    try {
-      const lyricResponse = await fetch(new URL("lyric/index.json", musicDirectory), { cache: "no-store" });
-      if (!lyricResponse.ok) {
-        throw new Error(`歌词索引加载失败：HTTP ${lyricResponse.status}`);
-      }
-
-      const files = await lyricResponse.json();
-      if (!Array.isArray(files) || files.some((file) => typeof file !== "string")) {
-        throw new Error("歌词索引格式无效");
-      }
-
-      lyricFiles = files;
-      lyricCatalogAvailable = true;
-    } catch (error) {
-      lyricsStatus.textContent = "歌词索引加载失败，请检查歌词文件";
-      console.error("歌词索引加载失败", error);
     }
 
     loadFavorites();
@@ -556,6 +575,27 @@ async function loadDailySong() {
   } catch (error) {
     title.textContent = "今日歌曲加载失败，请检查歌曲清单";
     console.error(error);
+  }
+}
+
+async function loadLyricCatalog() {
+  try {
+    const response = await fetch(new URL("lyric/index.json", musicDirectory));
+    if (!response.ok) {
+      throw new Error(`歌词索引加载失败：HTTP ${response.status}`);
+    }
+
+    const files = await response.json();
+    if (!Array.isArray(files) || files.some((file) => typeof file !== "string")) {
+      throw new Error("歌词索引格式无效");
+    }
+
+    lyricFiles = files;
+    lyricCatalogAvailable = true;
+    return true;
+  } catch (error) {
+    console.error("歌词索引加载失败", error);
+    return false;
   }
 }
 
