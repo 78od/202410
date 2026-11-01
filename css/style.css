@@ -39,9 +39,8 @@ body {
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
-.site-content[inert] {
-  pointer-events: none;
-  user-select: none;
+.gated-page > :not(.site-gate) {
+  display: none;
 }
 
 .site-gate {
@@ -51,7 +50,7 @@ body {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(3, 3, 3, 0.96);
+  background: #030303;
 }
 
 .site-gate[hidden] {

@@ -3,19 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="css/style.css?v=20261101-2" />
+    <link rel="stylesheet" href="css/style.css?v=20261101-3" />
   </head>
-  <body>
-    <div class="site-gate" id="site-gate" role="dialog" aria-modal="true" aria-labelledby="site-gate-title">
-      <form class="site-gate-card" id="site-gate-form">
-        <h1 id="site-gate-title">请输入访问密码</h1>
-        <label class="visually-hidden" for="site-gate-password">访问密码</label>
-        <input id="site-gate-password" name="password" type="password" placeholder="输入密码" autocomplete="current-password" required />
-        <button class="site-gate-submit" type="submit">进入主站</button>
-        <p class="site-gate-status" id="site-gate-status" role="status" aria-live="polite"></p>
-      </form>
-    </div>
-    <main class="site-content" id="site-content" inert>
+  <body class="gated-page">
+    <main id="site-content">
     <div class="container">
       <div class="topbar">
         <div class="brand">欧弟看片</div>
@@ -91,7 +82,6 @@
       </div>
     </div>
     </main>
-    <script src="js/site-gate.js?v=20261101-1" defer></script>
-    <script src="js/daily-music.js?v=20261101-1" defer></script>
+    <script src="js/site-gate.js?v=20261101-2" defer></script>
   </body>
 </html>
