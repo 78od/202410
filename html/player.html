@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="../css/style.css?v=20261031-4" />
+    <link rel="stylesheet" href="../css/style.css?v=20261101-1" />
     <title>音乐播放器</title>
   </head>
   <body class="player-page">
@@ -19,10 +19,16 @@
           <ul class="song-search-results" id="song-search-results" aria-label="搜索结果" hidden></ul>
           <div class="song-search-status" id="song-search-status" role="status" aria-live="polite"></div>
         </div>
-        <button class="random-song-button" id="random-song-button" type="button" disabled>随机换一首</button>
+        <div class="music-actions">
+          <button class="random-song-button" id="random-song-button" type="button" disabled>随机换一首</button>
+          <button class="favorite-song-button" id="favorite-song-button" type="button" aria-pressed="false" disabled>☆ 收藏</button>
+          <button class="favorites-toggle-button" id="favorites-toggle-button" type="button" aria-expanded="false" aria-controls="favorite-song-list" disabled>我的收藏</button>
+        </div>
+        <ul class="favorite-song-list" id="favorite-song-list" aria-label="我的收藏" hidden></ul>
+        <div class="favorite-song-status" id="favorite-song-status" role="status" aria-live="polite"></div>
         <p class="music-tip">搜索歌名，或随机切换一首</p>
       </section>
     </main>
-    <script src="../js/daily-music.js?v=20261031-5" defer></script>
+    <script src="../js/daily-music.js?v=20261101-1" defer></script>
   </body>
 </html>

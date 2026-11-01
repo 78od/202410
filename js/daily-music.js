@@ -4,11 +4,18 @@ const randomSongButton = document.querySelector("#random-song-button");
 const songSearchInput = document.querySelector("#song-search-input");
 const songSearchResults = document.querySelector("#song-search-results");
 const songSearchStatus = document.querySelector("#song-search-status");
+const favoriteSongButton = document.querySelector("#favorite-song-button");
+const favoritesToggleButton = document.querySelector("#favorites-toggle-button");
+const favoriteSongList = document.querySelector("#favorite-song-list");
+const favoriteSongStatus = document.querySelector("#favorite-song-status");
 const musicDirectory = new URL("../music/", document.currentScript.src);
+const favoritesStorageKey = "202410-music-favorites";
 const millisecondsPerDay = 24 * 60 * 60 * 1000;
 const startDay = Date.UTC(2026, 9, 31) / millisecondsPerDay;
 const todaySong = "我不难过-孙燕姿.mp3";
 let currentSong;
+let favoriteSongs = new Set();
+let favoritesAvailable = true;
 const beijingDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
@@ -31,6 +38,7 @@ function showSong(song) {
   const isPlaying = !audio.paused;
   currentSong = song;
   title.textContent = song.replace(/\.[^.]+$/, "");
+  updateFavoriteButton();
   audio.src = new URL(encodeURIComponent(song), musicDirectory).href;
   audio.load();
 
@@ -38,6 +46,82 @@ function showSong(song) {
     audio.play().catch(() => {
       console.warn("浏览器未允许自动继续播放，请手动点击播放。");
     });
+  }
+}
+
+function updateFavoriteButton() {
+  const isFavorite = favoriteSongs.has(currentSong);
+  favoriteSongButton.textContent = isFavorite ? "★ 已收藏" : "☆ 收藏";
+  favoriteSongButton.setAttribute("aria-pressed", String(isFavorite));
+}
+
+function loadFavorites() {
+  try {
+    const storedFavorites = localStorage.getItem(favoritesStorageKey);
+    if (storedFavorites !== null) {
+      const parsedFavorites = JSON.parse(storedFavorites);
+      if (!Array.isArray(parsedFavorites) || parsedFavorites.some((song) => typeof song !== "string")) {
+        throw new Error("收藏数据格式无效");
+      }
+      favoriteSongs = new Set(parsedFavorites);
+    }
+  } catch (error) {
+    favoritesAvailable = false;
+    favoriteSongStatus.textContent = "收藏读取失败，请检查浏览器存储设置";
+    console.error("收藏读取失败", error);
+  }
+}
+
+function renderFavoriteList(songs) {
+  favoriteSongList.replaceChildren();
+  if (!favoritesAvailable) {
+    return;
+  }
+
+  const savedSongs = songs.filter((song) => favoriteSongs.has(song));
+  favoriteSongStatus.textContent = savedSongs.length === 0 ? "还没有收藏歌曲" : `已收藏 ${savedSongs.length} 首歌曲`;
+
+  for (const song of savedSongs) {
+    const item = document.createElement("li");
+    const playButton = document.createElement("button");
+    const removeButton = document.createElement("button");
+    playButton.type = "button";
+    playButton.className = "favorite-song-play";
+    playButton.textContent = song.replace(/\.[^.]+$/, "");
+    playButton.addEventListener("click", () => {
+      showSong(song);
+      audio.play().catch((error) => {
+        console.warn("歌曲已切换，请点击播放器开始播放。", error);
+      });
+    });
+    removeButton.type = "button";
+    removeButton.className = "favorite-song-remove";
+    removeButton.textContent = "移除";
+    removeButton.setAttribute("aria-label", `从收藏中移除${song.replace(/\.[^.]+$/, "")}`);
+    removeButton.addEventListener("click", () => {
+      saveFavorite(song, false, songs);
+    });
+    item.append(playButton, removeButton);
+    favoriteSongList.append(item);
+  }
+}
+
+function saveFavorite(song, shouldFavorite, songs) {
+  const updatedFavorites = new Set(favoriteSongs);
+  if (shouldFavorite) {
+    updatedFavorites.add(song);
+  } else {
+    updatedFavorites.delete(song);
+  }
+
+  try {
+    localStorage.setItem(favoritesStorageKey, JSON.stringify([...updatedFavorites]));
+    favoriteSongs = updatedFavorites;
+    updateFavoriteButton();
+    renderFavoriteList(songs);
+  } catch (error) {
+    favoriteSongStatus.textContent = "收藏保存失败，请检查浏览器存储空间或权限";
+    console.error("收藏保存失败", error);
   }
 }
 
@@ -97,6 +181,7 @@ async function loadDailySong() {
       throw new Error("歌曲清单格式无效或为空");
     }
 
+    loadFavorites();
     let currentDay = getBeijingDay();
     showSong(currentDay === startDay ? todaySong : songs[getDailyIndex(songs.length, currentDay)]);
     songSearchInput.disabled = false;
@@ -109,6 +194,20 @@ async function loadDailySong() {
         showSong(getRandomSong(songs));
       }
     });
+    favoriteSongButton.disabled = !favoritesAvailable;
+    favoritesToggleButton.disabled = !favoritesAvailable;
+    favoriteSongButton.addEventListener("click", () => {
+      saveFavorite(currentSong, !favoriteSongs.has(currentSong), songs);
+    });
+    favoritesToggleButton.addEventListener("click", () => {
+      const isExpanded = favoritesToggleButton.getAttribute("aria-expanded") === "true";
+      favoritesToggleButton.setAttribute("aria-expanded", String(!isExpanded));
+      favoriteSongList.hidden = isExpanded;
+      if (!isExpanded) {
+        renderFavoriteList(songs);
+      }
+    });
+    renderFavoriteList(songs);
     audio.addEventListener("ended", () => {
       if (songs.length < 2) {
         return;
