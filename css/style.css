@@ -274,7 +274,7 @@ img {
   gap: 14px;
 }
 
-.music-box > :not(.album-artwork) {
+.music-box > :not(.album-artwork):not(.album-cover-lover) {
   position: relative;
   z-index: 1;
   width: min(78%, 540px);
@@ -287,6 +287,9 @@ img {
   width: auto;
   height: auto;
   overflow: hidden;
+  background:
+    linear-gradient(rgba(8, 8, 8, 0.72), rgba(8, 8, 8, 0.82)),
+    url("../music/mp/第二天堂(江南)-600.jpg") center / cover no-repeat;
   border-radius: inherit;
   pointer-events: none;
 }
@@ -332,9 +335,11 @@ img {
 }
 
 .album-cover-lover {
-  top: 49%;
-  left: 2%;
-  width: 7%;
+  z-index: 1;
+  top: 48%;
+  left: 0;
+  width: 16%;
+  opacity: 0.82;
   transform: rotate(13deg);
 }
 
@@ -371,6 +376,97 @@ img {
   bottom: 3%;
   width: 8%;
   transform: rotate(-5deg);
+}
+
+.standalone-player .album-cover {
+  opacity: 0.38;
+}
+
+.standalone-player .album-cover-says {
+  z-index: 1;
+  top: 4%;
+  left: 3%;
+  width: 21%;
+  opacity: 1;
+  border: 3px solid var(--accent-light);
+  box-shadow: 0 0 24px rgba(127, 219, 255, 0.6), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: rotate(-8deg);
+}
+
+.standalone-player .album-cover-tears {
+  top: 30%;
+  left: 0;
+  width: 13%;
+  opacity: 0.78;
+  border-color: rgba(255, 222, 230, 0.95);
+  box-shadow: 0 0 18px rgba(255, 148, 183, 0.38), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: rotate(-17deg);
+}
+
+.standalone-player .album-cover-surprise {
+  top: 21%;
+  right: 0;
+  width: 18%;
+  opacity: 0.82;
+  border-color: rgba(255, 222, 151, 0.95);
+  box-shadow: 0 0 20px rgba(255, 190, 92, 0.42), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: rotate(13deg);
+}
+
+.standalone-player .album-cover-lover {
+  top: 43%;
+  width: 16%;
+  opacity: 0.82;
+}
+
+.standalone-player .album-cover-future {
+  top: 45%;
+  right: 2%;
+  width: 15%;
+  opacity: 0.76;
+  border-color: rgba(196, 224, 255, 0.95);
+  box-shadow: 0 0 18px rgba(113, 174, 255, 0.42), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: rotate(-11deg);
+}
+
+.standalone-player .album-cover-unfinished {
+  bottom: 17%;
+  left: 0;
+  width: 18%;
+  opacity: 0.82;
+  border-color: rgba(200, 239, 196, 0.95);
+  box-shadow: 0 0 18px rgba(115, 214, 137, 0.4), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: rotate(-14deg);
+}
+
+.standalone-player .album-cover-fairy-tale {
+  right: 17%;
+  bottom: 28%;
+  width: 11%;
+  opacity: 0.78;
+  border-color: rgba(235, 210, 255, 0.95);
+  box-shadow: 0 0 18px rgba(184, 137, 255, 0.4), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: rotate(17deg);
+}
+
+.standalone-player .album-cover-leaf {
+  bottom: 2%;
+  left: 23%;
+  width: 14%;
+  opacity: 0.82;
+  border-color: rgba(215, 239, 177, 0.95);
+  box-shadow: 0 0 18px rgba(163, 205, 97, 0.4), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: rotate(-12deg);
+}
+
+.standalone-player .album-cover-freedom {
+  right: 0;
+  bottom: 1%;
+  width: 19%;
+  opacity: 0.82;
+  border-color: rgba(178, 235, 255, 0.95);
+  box-shadow: 0 0 20px rgba(77, 195, 255, 0.42), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: rotate(8deg);
 }
 
 /* 音乐装饰图片持续旋转，增强播放器区域的动态感 */
@@ -909,13 +1005,8 @@ audio {
     align-items: flex-start;
   }
 
-  .music-box > :not(.album-artwork) {
+  .music-box > :not(.album-artwork):not(.album-cover-lover) {
     width: min(84%, 540px);
-  }
-
-  .album-cover-says,
-  .album-cover-second-heaven {
-    width: 7%;
   }
 
   .album-cover-tears,
@@ -925,6 +1016,45 @@ audio {
   .album-cover-unfinished,
   .album-cover-fairy-tale {
     width: 5%;
+  }
+
+  .standalone-player .album-cover-tears {
+    width: 18%;
+  }
+
+  .standalone-player .album-cover-says {
+    width: 28%;
+  }
+
+  .standalone-player .album-cover-surprise {
+    width: 24%;
+  }
+
+  .standalone-player .album-cover-lover {
+    top: 43%;
+    width: 16%;
+  }
+
+  .standalone-player .album-cover-future {
+    width: 22%;
+  }
+
+  .standalone-player .album-cover-unfinished {
+    width: 24%;
+  }
+
+  .standalone-player .album-cover-fairy-tale {
+    right: 17%;
+    width: 17%;
+  }
+
+  .standalone-player .album-cover-leaf {
+    left: 20%;
+    width: 20%;
+  }
+
+  .standalone-player .album-cover-freedom {
+    width: 27%;
   }
 }
 

@@ -12,9 +12,6 @@ const favoriteSongList = document.querySelector("#favorite-song-list");
 const favoriteSongStatus = document.querySelector("#favorite-song-status");
 const musicDirectory = new URL("../music/", document.currentScript.src);
 const favoritesStorageKey = "202410-music-favorites";
-const millisecondsPerDay = 24 * 60 * 60 * 1000;
-const startDay = Date.UTC(2026, 9, 31) / millisecondsPerDay;
-const todaySong = "我不难过-孙燕姿.mp3";
 let currentSong;
 let lyricFiles = [];
 let lyricCatalogAvailable = false;
@@ -30,23 +27,6 @@ const lyricOverrides = new Map([
   ["当你.mp3", "当你-林俊杰-歌词.lrc"],
   ["刻在我心底的名字-卢广仲.mp3", "刻在我心底的名字-卢广仲-歌词.lrc"],
 ]);
-const beijingDateFormatter = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Asia/Shanghai",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-function getBeijingDay() {
-  const parts = beijingDateFormatter.formatToParts(new Date());
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)) / millisecondsPerDay;
-}
-
-function getDailyIndex(songCount, day) {
-  const daysSinceStart = day - startDay;
-  return ((daysSinceStart % songCount) + songCount) % songCount;
-}
 
 function normalizeTrackText(value) {
   return value
@@ -514,7 +494,7 @@ function renderSongSearchResults(songs, query) {
   }
 }
 
-async function loadDailySong() {
+async function loadPlaylist() {
   lyricCatalogPromise = loadLyricCatalog();
   try {
     const response = await fetch(new URL("playlist.json", musicDirectory));
@@ -526,10 +506,9 @@ async function loadDailySong() {
     if (!Array.isArray(songs) || songs.length === 0 || songs.some((song) => typeof song !== "string")) {
       throw new Error("歌曲清单格式无效或为空");
     }
-
     loadFavorites();
-    let currentDay = getBeijingDay();
-    showSong(currentDay === startDay ? todaySong : songs[getDailyIndex(songs.length, currentDay)]);
+    loadFavorites();
+    showSong(songs[Math.floor(Math.random() * songs.length)]);
     songSearchInput.disabled = false;
     songSearchInput.addEventListener("input", () => {
       renderSongSearchResults(songs, songSearchInput.value.trim());
@@ -564,16 +543,8 @@ async function loadDailySong() {
         console.warn("下一首歌曲无法自动播放，请手动点击播放。", error);
       });
     });
-
-    window.setInterval(() => {
-      const newDay = getBeijingDay();
-      if (newDay !== currentDay) {
-        currentDay = newDay;
-        showSong(newDay === startDay ? todaySong : songs[getDailyIndex(songs.length, newDay)]);
-      }
-    }, 60 * 1000);
   } catch (error) {
-    title.textContent = "今日歌曲加载失败，请检查歌曲清单";
+    title.textContent = "歌曲加载失败，请检查歌曲清单";
     console.error(error);
   }
 }
@@ -612,4 +583,4 @@ audio.addEventListener("seeked", updateLyricScroll);
 audio.addEventListener("play", startLyricScroll);
 audio.addEventListener("pause", stopLyricScroll);
 
-loadDailySong();
+loadPlaylist();
