@@ -313,6 +313,10 @@ audio {
   text-align: center;
 }
 
+.lyrics-status[hidden] {
+  display: none;
+}
+
 .lyric-lines {
   display: flex;
   flex-direction: column;

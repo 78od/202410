@@ -8,7 +8,7 @@ function unlockSite() {
   document.body.classList.remove("gated-page");
   if (!playerScriptLoaded && document.querySelector("#daily-song")) {
     const playerScript = document.createElement("script");
-    playerScript.src = new URL("daily-music.js?v=20261101-7", siteGateScriptUrl).href;
+    playerScript.src = new URL("daily-music.js?v=20261101-8", siteGateScriptUrl).href;
     playerScript.defer = true;
     document.body.append(playerScript);
     playerScriptLoaded = true;

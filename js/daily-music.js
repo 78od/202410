@@ -22,7 +22,10 @@ let currentLyrics = [];
 let lyricRequestId = 0;
 let favoriteSongs = new Set();
 let favoritesAvailable = true;
-const lyricOverrides = new Map([["当你.mp3", "当你-林俊杰-歌词.lrc"]]);
+const lyricOverrides = new Map([
+  ["当你.mp3", "当你-林俊杰-歌词.lrc"],
+  ["刻在我心底的名字-卢广仲.mp3", "刻在我心底的名字-卢广仲-歌词.lrc"],
+]);
 const beijingDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
