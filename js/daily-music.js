@@ -22,6 +22,7 @@ let currentLyrics = [];
 let lyricRequestId = 0;
 let favoriteSongs = new Set();
 let favoritesAvailable = true;
+const lyricOverrides = new Map([["当你.mp3", "当你-林俊杰-歌词.lrc"]]);
 const beijingDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
@@ -62,17 +63,15 @@ function getLyricMetadata(file) {
 }
 
 function findLyricFile(song) {
-  const lyricOverride = lyricFiles.find(
-    (file) =>
-      song === "手心的蔷薇.mp3" &&
-      file === "手心的蔷薇-林俊杰&amp;G.E.M.邓紫棋-歌词.lrc",
-  );
-  if (lyricOverride) {
-    return {
-      file: lyricOverride,
-      metadata: getLyricMetadata(lyricOverride),
-      score: 4,
-    };
+  const override = lyricOverrides.get(song);
+  if (override) {
+    const file = lyricFiles.find((lyricFile) => lyricFile === override);
+    if (file) {
+      return { file, metadata: getLyricMetadata(file), score: 4 };
+    }
+
+    console.error("指定的歌词文件不在歌词索引中", { song, lyricFile: override });
+    return null;
   }
 
   const songStem = song.replace(/\.[^.]+$/, "");
@@ -90,22 +89,38 @@ function findLyricFile(song) {
         return null;
       }
 
-      const hasArtist = normalizedSong.includes(normalizedArtist);
       const exactTitle = normalizedSong === normalizedTitle;
       const exactArtistPair =
         normalizedSong === `${normalizedTitle}${normalizedArtist}` ||
         normalizedSong === `${normalizedArtist}${normalizedTitle}`;
+      if (!exactTitle && !exactArtistPair) {
+        return null;
+      }
 
       return {
         file,
         metadata,
-        score: exactArtistPair ? 3 : hasArtist ? 2 : exactTitle ? 1 : 0,
+        score: exactArtistPair ? 3 : 1,
       };
     })
     .filter((match) => match !== null)
-    .sort((left, right) => right.score - left.score || left.file.localeCompare(right.file));
+    .sort((left, right) => right.score - left.score);
 
-  return matches[0] ?? null;
+  const bestMatch = matches[0];
+  if (!bestMatch) {
+    return null;
+  }
+
+  const equallyRankedMatches = matches.filter((match) => match.score === bestMatch.score);
+  if (equallyRankedMatches.length > 1) {
+    console.error("歌曲对应多个歌词版本，请为该歌曲指定歌手", {
+      song,
+      lyricFiles: equallyRankedMatches.map((match) => match.file),
+    });
+    return null;
+  }
+
+  return bestMatch;
 }
 
 function parseLrc(text, metadata) {
@@ -193,7 +208,10 @@ async function loadLyrics(song) {
   }
 
   try {
-    const response = await fetch(new URL(encodeURIComponent(match.file), new URL("lyric/", musicDirectory)));
+    const response = await fetch(
+      new URL(encodeURIComponent(match.file), new URL("lyric/", musicDirectory)),
+      { cache: "no-store" },
+    );
     if (!response.ok) {
       throw new Error(`歌词加载失败：HTTP ${response.status}`);
     }
@@ -413,7 +431,7 @@ function renderSongSearchResults(songs, query) {
 
 async function loadDailySong() {
   try {
-    const response = await fetch(new URL("playlist.json", musicDirectory));
+    const response = await fetch(new URL("playlist.json", musicDirectory), { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`歌曲清单加载失败：HTTP ${response.status}`);
     }
@@ -424,7 +442,7 @@ async function loadDailySong() {
     }
 
     try {
-      const lyricResponse = await fetch(new URL("lyric/index.json", musicDirectory));
+      const lyricResponse = await fetch(new URL("lyric/index.json", musicDirectory), { cache: "no-store" });
       if (!lyricResponse.ok) {
         throw new Error(`歌词索引加载失败：HTTP ${lyricResponse.status}`);
       }
