@@ -20,6 +20,7 @@ let lyricFiles = [];
 let lyricCatalogAvailable = false;
 let currentLyrics = [];
 let lyricRequestId = 0;
+let lyricAnimationFrame = 0;
 let favoriteSongs = new Set();
 let favoritesAvailable = true;
 const lyricOverrides = new Map([
@@ -195,6 +196,7 @@ async function loadLyrics(song) {
   const requestId = ++lyricRequestId;
   currentLyrics = [];
   lyricLines.replaceChildren();
+  lyricLines.scrollTop = 0;
   lyricLines.hidden = true;
   lyricsStatus.hidden = false;
   lyricsStatus.textContent = "正在载入歌词…";
@@ -232,10 +234,21 @@ async function loadLyrics(song) {
 
     currentLyrics = entries;
     for (const entry of entries) {
-      const line = document.createElement("li");
+      const item = document.createElement("li");
+      item.className = "lyric-item";
+      const line = document.createElement("button");
       line.className = "lyric-line";
+      line.type = "button";
       line.textContent = entry.text;
-      lyricLines.append(line);
+      const minutes = Math.floor(entry.time / 60);
+      const seconds = Math.floor(entry.time % 60).toString().padStart(2, "0");
+      line.setAttribute("aria-label", `跳转到 ${minutes}:${seconds}：${entry.text}`);
+      line.addEventListener("click", () => {
+        audio.currentTime = entry.time;
+        updateLyricScroll();
+      });
+      item.append(line);
+      lyricLines.append(item);
     }
     lyricsStatus.hidden = true;
     lyricsStatus.textContent = "";
@@ -276,24 +289,57 @@ function updateLyricScroll() {
     return;
   }
 
-  const activeLine = lyricLines.children[activeIndex];
-  if (!activeLine || activeLine.classList.contains("is-active")) {
+  const activeItem = lyricLines.children[activeIndex];
+  const activeLine = activeItem?.querySelector(".lyric-line");
+  if (!activeLine) {
     return;
   }
 
-  lyricLines.querySelector(".is-active")?.classList.remove("is-active");
-  lyricLines.querySelector('[aria-current="true"]')?.removeAttribute("aria-current");
-  activeLine.classList.add("is-active");
-  activeLine.setAttribute("aria-current", "true");
+  if (!activeLine.classList.contains("is-active")) {
+    lyricLines.querySelector(".is-active")?.classList.remove("is-active");
+    lyricLines.querySelector('[aria-current="true"]')?.removeAttribute("aria-current");
+    activeLine.classList.add("is-active");
+    activeLine.setAttribute("aria-current", "true");
+  }
 
-  const top =
-    activeLine.offsetTop -
+  const getCenteredScrollTop = (line) =>
+    line.offsetTop -
     lyricLines.offsetTop -
-    (lyricLines.clientHeight - activeLine.offsetHeight) / 2;
-  lyricLines.scrollTo({
-    top: Math.max(0, top),
-    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-  });
+    (lyricLines.clientHeight - line.offsetHeight) / 2;
+  const nextIndex = activeIndex + 1;
+  const nextItem = lyricLines.children[nextIndex];
+  let scrollTop = getCenteredScrollTop(activeItem);
+
+  if (nextItem) {
+    const activeTime = currentLyrics[activeIndex].time;
+    const nextTime = currentLyrics[nextIndex].time;
+    const progress = Math.min(1, Math.max(0, (audio.currentTime - activeTime) / (nextTime - activeTime)));
+    scrollTop += (getCenteredScrollTop(nextItem) - scrollTop) * progress;
+  }
+
+  lyricLines.scrollTop = Math.max(0, scrollTop);
+}
+
+function animateLyricScroll() {
+  lyricAnimationFrame = 0;
+  updateLyricScroll();
+  if (!audio.paused && !audio.ended) {
+    lyricAnimationFrame = window.requestAnimationFrame(animateLyricScroll);
+  }
+}
+
+function startLyricScroll() {
+  if (lyricAnimationFrame === 0) {
+    lyricAnimationFrame = window.requestAnimationFrame(animateLyricScroll);
+  }
+}
+
+function stopLyricScroll() {
+  if (lyricAnimationFrame !== 0) {
+    window.cancelAnimationFrame(lyricAnimationFrame);
+    lyricAnimationFrame = 0;
+  }
+  updateLyricScroll();
 }
 
 function showSong(song) {
@@ -523,5 +569,7 @@ audio.addEventListener("error", () => {
 
 audio.addEventListener("timeupdate", updateLyricScroll);
 audio.addEventListener("seeked", updateLyricScroll);
+audio.addEventListener("play", startLyricScroll);
+audio.addEventListener("pause", stopLyricScroll);
 
 loadDailySong();

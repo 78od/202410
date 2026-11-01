@@ -329,7 +329,7 @@ audio {
   overflow-y: auto;
   overscroll-behavior: contain;
   list-style: none;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   scrollbar-color: var(--line) transparent;
 }
 
@@ -337,13 +337,34 @@ audio {
   display: none;
 }
 
+.lyric-item {
+  width: 100%;
+}
+
 .lyric-line {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
   width: 100%;
   color: var(--muted);
+  cursor: pointer;
   opacity: 0.7;
   text-align: center;
   white-space: pre-line;
   transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.lyric-line:hover,
+.lyric-line:focus-visible {
+  color: var(--accent-light);
+  opacity: 1;
+}
+
+.lyric-line:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 4px;
 }
 
 .lyric-line.is-active {
