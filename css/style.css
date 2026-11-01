@@ -266,11 +266,111 @@ img {
 
 /* 音乐卡片中的图片、播放器和说明文字垂直排列 */
 .music-box {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 14px;
+}
+
+.music-box > :not(.album-artwork) {
+  position: relative;
+  z-index: 1;
+  width: min(78%, 540px);
+}
+
+.album-artwork {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: auto;
+  height: auto;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.album-cover {
+  position: absolute;
+  display: block;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+  user-select: none;
+}
+
+.album-cover-says {
+  top: 2%;
+  left: 2%;
+  width: 9%;
+  transform: rotate(-8deg);
+}
+
+.album-cover-second-heaven {
+  top: 3%;
+  right: 2%;
+  width: 9%;
+  transform: rotate(7deg);
+}
+
+.album-cover-tears {
+  top: 24%;
+  left: 0;
+  width: 7%;
+  transform: rotate(-15deg);
+}
+
+.album-cover-surprise {
+  top: 29%;
+  right: 0;
+  width: 7%;
+  transform: rotate(9deg);
+}
+
+.album-cover-lover {
+  top: 49%;
+  left: 2%;
+  width: 7%;
+  transform: rotate(13deg);
+}
+
+.album-cover-future {
+  top: 54%;
+  right: 1%;
+  width: 7%;
+  transform: rotate(-10deg);
+}
+
+.album-cover-unfinished {
+  bottom: 18%;
+  left: 0;
+  width: 7%;
+  transform: rotate(-13deg);
+}
+
+.album-cover-fairy-tale {
+  right: 0;
+  bottom: 20%;
+  width: 7%;
+  transform: rotate(11deg);
+}
+
+.album-cover-leaf {
+  bottom: 2%;
+  left: 3%;
+  width: 8%;
+  transform: rotate(13deg);
+}
+
+.album-cover-freedom {
+  right: 3%;
+  bottom: 3%;
+  width: 8%;
+  transform: rotate(-5deg);
 }
 
 /* 音乐装饰图片持续旋转，增强播放器区域的动态感 */
@@ -585,10 +685,6 @@ audio {
   padding: clamp(24px, 6vw, 48px);
 }
 
-.standalone-player .rotate {
-  width: clamp(150px, 36vw, 240px);
-}
-
 .standalone-player .music-title {
   font-size: clamp(1.2rem, 3vw, 1.6rem);
 }
@@ -811,6 +907,24 @@ audio {
     /* 顶部品牌栏改为纵向排列，并保持左对齐 */
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .music-box > :not(.album-artwork) {
+    width: min(84%, 540px);
+  }
+
+  .album-cover-says,
+  .album-cover-second-heaven {
+    width: 7%;
+  }
+
+  .album-cover-tears,
+  .album-cover-surprise,
+  .album-cover-lover,
+  .album-cover-future,
+  .album-cover-unfinished,
+  .album-cover-fairy-tale {
+    width: 5%;
   }
 }
 
