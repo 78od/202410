@@ -12,6 +12,7 @@ const favoriteSongList = document.querySelector("#favorite-song-list");
 const favoriteSongStatus = document.querySelector("#favorite-song-status");
 const musicDirectory = new URL("../music/", document.currentScript.src);
 const favoritesStorageKey = "202410-music-favorites";
+const volumeStorageKey = "202410-music-volume";
 let currentSong;
 let lyricFiles = [];
 let lyricCatalogAvailable = false;
@@ -19,11 +20,9 @@ let currentLyrics = [];
 let lyricScrollPositions = [];
 let activeLyricIndex = -1;
 let lyricRequestId = 0;
-let lyricAnimationFrame = 0;
+let lyricScrollAnimationFrame = 0;
 let lyricFollowResumeTimeout = 0;
 let lyricFollowPaused = false;
-let lyricFollowCatchingUp = false;
-let lyricFollowLastFrameTime = 0;
 let lyricCatalogPromise;
 let favoriteSongs = new Set();
 let favoritesAvailable = true;
@@ -31,6 +30,28 @@ const lyricOverrides = new Map([
   ["当你.mp3", "当你-林俊杰-歌词.lrc"],
   ["刻在我心底的名字-卢广仲.mp3", "刻在我心底的名字-卢广仲-歌词.lrc"],
 ]);
+
+try {
+  const storedVolume = localStorage.getItem(volumeStorageKey);
+  if (storedVolume !== null) {
+    const volume = Number(storedVolume);
+    if (Number.isFinite(volume) && volume >= 0 && volume <= 1) {
+      audio.volume = volume;
+    } else {
+      console.warn("保存的音量设置无效，已使用默认音量。");
+    }
+  }
+} catch (error) {
+  console.error("音量设置读取失败", error);
+}
+
+audio.addEventListener("volumechange", () => {
+  try {
+    localStorage.setItem(volumeStorageKey, String(audio.volume));
+  } catch (error) {
+    console.error("音量设置保存失败", error);
+  }
+});
 
 function normalizeTrackText(value) {
   return value
@@ -184,8 +205,7 @@ async function loadLyrics(song) {
   window.clearTimeout(lyricFollowResumeTimeout);
   lyricFollowResumeTimeout = 0;
   lyricFollowPaused = false;
-  lyricFollowCatchingUp = false;
-  lyricFollowLastFrameTime = 0;
+  cancelLyricScrollAnimation();
   currentLyrics = [];
   lyricScrollPositions = [];
   activeLyricIndex = -1;
@@ -275,28 +295,40 @@ function refreshLyricScrollPositions() {
 }
 
 function scrollLyricsTo(target) {
-  const boundedTarget = Math.max(0, target);
-  if (!lyricFollowCatchingUp) {
-    lyricFollowCatchingUp = false;
-    lyricLines.scrollTop = boundedTarget;
+  cancelLyricScrollAnimation();
+  const start = lyricLines.scrollTop;
+  const destination = Math.max(0, target);
+  if (
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    Math.abs(destination - start) < 1
+  ) {
+    lyricLines.scrollTop = destination;
     return;
   }
 
-  const now = performance.now();
-  const elapsed = Math.min(now - lyricFollowLastFrameTime, 50);
-  lyricFollowLastFrameTime = now;
-  const distance = boundedTarget - lyricLines.scrollTop;
-  const maxStep = 2200 * elapsed / 1000;
-  if (Math.abs(distance) <= maxStep) {
-    lyricLines.scrollTop = boundedTarget;
-    lyricFollowCatchingUp = false;
-    return;
-  }
-
-  lyricLines.scrollTop += Math.sign(distance) * maxStep;
+  const startTime = performance.now();
+  const duration = 260;
+  const animate = (now) => {
+    const progress = Math.min(1, (now - startTime) / duration);
+    const easedProgress = 1 - (1 - progress) ** 3;
+    lyricLines.scrollTop = start + (destination - start) * easedProgress;
+    if (progress < 1) {
+      lyricScrollAnimationFrame = window.requestAnimationFrame(animate);
+    } else {
+      lyricScrollAnimationFrame = 0;
+    }
+  };
+  lyricScrollAnimationFrame = window.requestAnimationFrame(animate);
 }
 
-function updateLyricScroll() {
+function cancelLyricScrollAnimation() {
+  if (lyricScrollAnimationFrame !== 0) {
+    window.cancelAnimationFrame(lyricScrollAnimationFrame);
+    lyricScrollAnimationFrame = 0;
+  }
+}
+
+function updateLyricScroll(forceScroll = false) {
   if (currentLyrics.length === 0) {
     return;
   }
@@ -314,19 +346,21 @@ function updateLyricScroll() {
 
   const activeIndex = low - 1;
   if (activeIndex < 0) {
+    const activeIndexChanged = activeLyricIndex >= 0;
     if (activeLyricIndex >= 0) {
       const previousLine = lyricLines.children[activeLyricIndex]?.firstElementChild;
       previousLine?.classList.remove("is-active");
       previousLine?.removeAttribute("aria-current");
       activeLyricIndex = -1;
     }
-    if (!lyricFollowPaused) {
+    if (!lyricFollowPaused && (activeIndexChanged || forceScroll)) {
       scrollLyricsTo(0);
     }
     return;
   }
 
-  if (activeIndex !== activeLyricIndex) {
+  const activeIndexChanged = activeIndex !== activeLyricIndex;
+  if (activeIndexChanged) {
     const previousLine = lyricLines.children[activeLyricIndex]?.firstElementChild;
     previousLine?.classList.remove("is-active");
     previousLine?.removeAttribute("aria-current");
@@ -339,31 +373,21 @@ function updateLyricScroll() {
     activeLyricIndex = activeIndex;
   }
 
-  if (lyricFollowPaused) {
+  if (lyricFollowPaused || (!activeIndexChanged && !forceScroll)) {
     return;
   }
 
-  let scrollTop = lyricScrollPositions[activeIndex];
-  if (activeIndex + 1 < lyricScrollPositions.length) {
-    const activeTime = currentLyrics[activeIndex].time;
-    const nextTime = currentLyrics[activeIndex + 1].time;
-    const progress = Math.min(1, Math.max(0, (audio.currentTime - activeTime) / (nextTime - activeTime)));
-    scrollTop += (lyricScrollPositions[activeIndex + 1] - scrollTop) * progress;
-  }
-
-  scrollLyricsTo(scrollTop);
+  scrollLyricsTo(lyricScrollPositions[activeIndex]);
 }
 
 function pauseLyricFollow() {
   lyricFollowPaused = true;
+  cancelLyricScrollAnimation();
   window.clearTimeout(lyricFollowResumeTimeout);
   lyricFollowResumeTimeout = window.setTimeout(() => {
     lyricFollowPaused = false;
     lyricFollowResumeTimeout = 0;
-    lyricFollowCatchingUp = true;
-    lyricFollowLastFrameTime = performance.now();
-    updateLyricScroll();
-    startLyricScroll();
+    updateLyricScroll(true);
   }, 3000);
 }
 
@@ -371,8 +395,7 @@ function resumeLyricFollow() {
   window.clearTimeout(lyricFollowResumeTimeout);
   lyricFollowResumeTimeout = 0;
   lyricFollowPaused = false;
-  lyricFollowCatchingUp = false;
-  updateLyricScroll();
+  updateLyricScroll(true);
 }
 
 lyricLines.addEventListener("wheel", pauseLyricFollow, { passive: true });
@@ -404,31 +427,6 @@ lyricLines.addEventListener("click", (event) => {
 });
 
 window.addEventListener("resize", refreshLyricScrollPositions);
-
-function animateLyricScroll() {
-  lyricAnimationFrame = 0;
-  updateLyricScroll();
-  if ((!audio.paused && !audio.ended) || lyricFollowCatchingUp) {
-    lyricAnimationFrame = window.requestAnimationFrame(animateLyricScroll);
-  }
-}
-
-function startLyricScroll() {
-  if (lyricAnimationFrame === 0) {
-    lyricAnimationFrame = window.requestAnimationFrame(animateLyricScroll);
-  }
-}
-
-function stopLyricScroll() {
-  if (lyricAnimationFrame !== 0) {
-    window.cancelAnimationFrame(lyricAnimationFrame);
-    lyricAnimationFrame = 0;
-  }
-  updateLyricScroll();
-  if (lyricFollowCatchingUp) {
-    startLyricScroll();
-  }
-}
 
 function showSong(song) {
   const isPlaying = !audio.paused;
@@ -665,8 +663,6 @@ audio.addEventListener("keydown", (event) => {
 audio.addEventListener("play", () => {
   audio.preload = "auto";
   audio.fetchPriority = "high";
-  startLyricScroll();
 });
-audio.addEventListener("pause", stopLyricScroll);
 
 loadPlaylist();

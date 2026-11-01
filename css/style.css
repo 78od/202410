@@ -274,10 +274,24 @@ img {
   gap: 14px;
 }
 
-.music-box > :not(.album-artwork):not(.album-cover-lover) {
+.music-box > :not(.album-artwork):not(.album-cover-lover):not(.player-xiaofu-photo) {
   position: relative;
   z-index: 1;
   width: min(78%, 540px);
+}
+
+.player-xiaofu-photo {
+  position: absolute;
+  z-index: 1;
+  top: 3%;
+  right: 3%;
+  width: 12%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
+  transform: rotate(7deg);
 }
 
 .album-artwork {
@@ -391,6 +405,10 @@ img {
   border: 3px solid var(--accent-light);
   box-shadow: 0 0 24px rgba(127, 219, 255, 0.6), 0 12px 28px rgba(0, 0, 0, 0.65);
   transform: rotate(-8deg);
+}
+
+.standalone-player .player-xiaofu-photo {
+  width: 15%;
 }
 
 .standalone-player .album-cover-tears {
@@ -1005,8 +1023,16 @@ audio {
     align-items: flex-start;
   }
 
-  .music-box > :not(.album-artwork):not(.album-cover-lover) {
+  .music-box > :not(.album-artwork):not(.album-cover-lover):not(.player-xiaofu-photo) {
     width: min(84%, 540px);
+  }
+
+  .player-xiaofu-photo {
+    width: 17%;
+  }
+
+  .standalone-player .player-xiaofu-photo {
+    width: 21%;
   }
 
   .album-cover-tears,
