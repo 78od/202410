@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="../css/style.css?v=20261101-21" />
+    <link rel="preload" as="image" href="../music/mp/第二天堂(江南)-600.jpg" fetchpriority="high" />
     <title>音乐播放器</title>
   </head>
   <body class="player-page">
@@ -11,16 +12,16 @@
       <h1 class="standalone-player-heading">音乐播放器</h1>
       <section class="card music-box standalone-player" aria-label="音乐播放器">
         <div class="album-artwork" aria-hidden="true">
-          <img class="album-cover album-cover-says" src="../music/mp/她说.jpg" alt="" loading="eager" decoding="async" draggable="false" />
-          <img class="album-cover album-cover-tears" src="../music/mp/别再为他流泪-600.jpg" alt="" loading="eager" decoding="async" draggable="false" />
-          <img class="album-cover album-cover-surprise" src="../music/mp/意外-600.jpg" alt="" loading="eager" decoding="async" draggable="false" />
-          <img class="album-cover album-cover-future" src="../music/mp/未來-600.jpg" alt="" loading="eager" decoding="async" draggable="false" />
-          <img class="album-cover album-cover-unfinished" src="../music/mp/未完成-600.jpg" alt="" loading="eager" decoding="async" draggable="false" />
-          <img class="album-cover album-cover-fairy-tale" src="../music/mp/童話-600.jpg" alt="" loading="eager" decoding="async" draggable="false" />
-          <img class="album-cover album-cover-leaf" src="../music/mp/葉惠美-600.jpg" alt="" loading="eager" decoding="async" draggable="false" />
-          <img class="album-cover album-cover-freedom" src="../music/mp/自由的你-Single-600.jpg" alt="" loading="eager" decoding="async" draggable="false" />
+          <img class="album-cover album-cover-says" src="../music/mp/她说.jpg" alt="" loading="eager" fetchpriority="high" decoding="async" draggable="false" />
+          <img class="album-cover album-cover-tears" src="../music/mp/别再为他流泪-600.jpg" alt="" loading="lazy" fetchpriority="low" decoding="async" draggable="false" />
+          <img class="album-cover album-cover-surprise" src="../music/mp/意外-600.jpg" alt="" loading="lazy" fetchpriority="low" decoding="async" draggable="false" />
+          <img class="album-cover album-cover-future" src="../music/mp/未來-600.jpg" alt="" loading="lazy" fetchpriority="low" decoding="async" draggable="false" />
+          <img class="album-cover album-cover-unfinished" src="../music/mp/未完成-600.jpg" alt="" loading="lazy" fetchpriority="low" decoding="async" draggable="false" />
+          <img class="album-cover album-cover-fairy-tale" src="../music/mp/童話-600.jpg" alt="" loading="lazy" fetchpriority="low" decoding="async" draggable="false" />
+          <img class="album-cover album-cover-leaf" src="../music/mp/葉惠美-600.jpg" alt="" loading="lazy" fetchpriority="low" decoding="async" draggable="false" />
+          <img class="album-cover album-cover-freedom" src="../music/mp/自由的你-Single-600.jpg" alt="" loading="lazy" fetchpriority="low" decoding="async" draggable="false" />
         </div>
-        <img class="album-cover album-cover-lover" src="../music/mp/戀人-Single-600.jpg" alt="" loading="eager" decoding="async" draggable="false" />
+        <img class="album-cover album-cover-lover" src="../music/mp/戀人-Single-600.jpg" alt="" loading="lazy" fetchpriority="low" decoding="async" draggable="false" />
         <h2 class="music-title" id="music-title">正在随机选歌…</h2>
         <audio id="daily-song" controls preload="none"></audio>
         <section class="lyrics-panel" aria-label="歌词">
@@ -43,6 +44,6 @@
         <p class="music-tip">搜索歌名，或随机切换一首</p>
       </section>
     </main>
-    <script src="../js/daily-music.js?v=20261101-16" defer></script>
+    <script src="../js/daily-music.js?v=20261101-17" defer></script>
   </body>
 </html>

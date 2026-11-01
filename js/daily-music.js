@@ -652,7 +652,21 @@ audio.addEventListener("error", () => {
 
 audio.addEventListener("timeupdate", updateLyricScroll);
 audio.addEventListener("seeked", updateLyricScroll);
-audio.addEventListener("play", startLyricScroll);
+audio.addEventListener("pointerdown", () => {
+  audio.preload = "auto";
+  audio.fetchPriority = "high";
+});
+audio.addEventListener("keydown", (event) => {
+  if (event.key === " " || event.key === "Enter") {
+    audio.preload = "auto";
+    audio.fetchPriority = "high";
+  }
+});
+audio.addEventListener("play", () => {
+  audio.preload = "auto";
+  audio.fetchPriority = "high";
+  startLyricScroll();
+});
 audio.addEventListener("pause", stopLyricScroll);
 
 loadPlaylist();
