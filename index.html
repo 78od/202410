@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="css/style.css?v=20261101-3" />
+    <link rel="stylesheet" href="css/style.css?v=20261101-4" />
   </head>
   <body class="gated-page">
     <main id="site-content">
@@ -30,6 +30,10 @@
           <img class="rotate" src="/202410/Photos/小夫.jpg" alt="小夫封面" />
           <h3 class="music-title" id="music-title">正在载入今日歌曲…</h3>
           <audio id="daily-song" controls preload="none"></audio>
+          <section class="lyrics-panel" aria-label="歌词">
+            <p class="lyrics-status" id="lyrics-status" role="status" aria-live="polite">正在载入歌词…</p>
+            <ul class="lyric-lines" id="lyric-lines" aria-label="滚动歌词" hidden></ul>
+          </section>
           <div class="song-search">
             <label class="visually-hidden" for="song-search-input">搜索歌曲</label>
             <input id="song-search-input" type="search" placeholder="搜索歌曲名称…" autocomplete="off" disabled />
@@ -82,6 +86,6 @@
       </div>
     </div>
     </main>
-    <script src="js/site-gate.js?v=20261101-2" defer></script>
+    <script src="js/site-gate.js?v=20261101-5" defer></script>
   </body>
 </html>
