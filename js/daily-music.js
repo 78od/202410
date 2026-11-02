@@ -55,14 +55,20 @@ audio.addEventListener("volumechange", () => {
 
 function normalizeTrackText(value) {
   return value
-    .replaceAll("&amp;", "&")
+    .replace(/&amp;/g, "&")
     .normalize("NFKC")
     .toLocaleLowerCase()
     .replace(/[\s\-－_()（）·.,!！&/]+/g, "");
 }
 
+function clearElement(element) {
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+}
+
 function getLyricMetadata(file) {
-  const stem = file.slice(0, -"-歌词.lrc".length).replaceAll("&amp;", "&");
+  const stem = file.slice(0, -"-歌词.lrc".length).replace(/&amp;/g, "&");
   const separator = stem.indexOf("-");
   if (separator < 0) {
     return null;
@@ -145,11 +151,16 @@ function parseLrc(text, metadata) {
   const entries = [];
 
   for (const line of text.split(/\r?\n/)) {
-    const timestamps = [...line.matchAll(timestampPattern)];
+    const timestamps = [];
+    let timestamp;
+    while ((timestamp = timestampPattern.exec(line)) !== null) {
+      timestamps.push(timestamp);
+    }
     if (timestamps.length === 0) {
       continue;
     }
 
+    timestampPattern.lastIndex = 0;
     const lyric = line.replace(timestampPattern, "").trim();
     if (!lyric || /^(lyrics by|composed by|tme.*版权|作词|作曲|编曲|制作|监制|演唱|出品|词[:：]|曲[:：])/i.test(lyric)) {
       continue;
@@ -178,7 +189,7 @@ function parseLrc(text, metadata) {
 
   entries.sort((left, right) => left.time - right.time);
   return entries.reduce((grouped, entry) => {
-    const previous = grouped.at(-1);
+    const previous = grouped[grouped.length - 1];
     if (previous && previous.time === entry.time) {
       previous.text += `\n${entry.text}`;
     } else {
@@ -195,7 +206,8 @@ function decodeLyric(buffer) {
     try {
       return new TextDecoder("gb18030", { fatal: true }).decode(buffer);
     } catch (gb18030Error) {
-      throw new Error("歌词文件编码不是 UTF-8 或 GB18030", { cause: gb18030Error });
+        console.error("歌词解码失败", gb18030Error);
+        throw new Error("歌词文件编码不是 UTF-8 或 GB18030");
     }
   }
 }
@@ -209,7 +221,7 @@ async function loadLyrics(song) {
   currentLyrics = [];
   lyricScrollPositions = [];
   activeLyricIndex = -1;
-  lyricLines.replaceChildren();
+  clearElement(lyricLines);
   if (lyricLines.scrollTop !== 0) {
     lyricLines.scrollTop = 0;
   }
@@ -299,7 +311,7 @@ function scrollLyricsTo(target) {
   const start = lyricLines.scrollTop;
   const destination = Math.max(0, target);
   if (
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+    (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
     Math.abs(destination - start) < 1
   ) {
     lyricLines.scrollTop = destination;
@@ -348,9 +360,12 @@ function updateLyricScroll(forceScroll = false) {
   if (activeIndex < 0) {
     const activeIndexChanged = activeLyricIndex >= 0;
     if (activeLyricIndex >= 0) {
-      const previousLine = lyricLines.children[activeLyricIndex]?.firstElementChild;
-      previousLine?.classList.remove("is-active");
-      previousLine?.removeAttribute("aria-current");
+      const previousItem = lyricLines.children[activeLyricIndex];
+      const previousLine = previousItem ? previousItem.firstElementChild : null;
+      if (previousLine) {
+        previousLine.classList.remove("is-active");
+        previousLine.removeAttribute("aria-current");
+      }
       activeLyricIndex = -1;
     }
     if (!lyricFollowPaused && (activeIndexChanged || forceScroll)) {
@@ -361,10 +376,14 @@ function updateLyricScroll(forceScroll = false) {
 
   const activeIndexChanged = activeIndex !== activeLyricIndex;
   if (activeIndexChanged) {
-    const previousLine = lyricLines.children[activeLyricIndex]?.firstElementChild;
-    previousLine?.classList.remove("is-active");
-    previousLine?.removeAttribute("aria-current");
-    const activeLine = lyricLines.children[activeIndex]?.firstElementChild;
+    const previousItem = lyricLines.children[activeLyricIndex];
+    const previousLine = previousItem ? previousItem.firstElementChild : null;
+    if (previousLine) {
+      previousLine.classList.remove("is-active");
+      previousLine.removeAttribute("aria-current");
+    }
+    const activeItem = lyricLines.children[activeIndex];
+    const activeLine = activeItem ? activeItem.firstElementChild : null;
     if (!activeLine) {
       return;
     }
@@ -468,7 +487,7 @@ function loadFavorites() {
 }
 
 function renderFavoriteList(songs) {
-  favoriteSongList.replaceChildren();
+  clearElement(favoriteSongList);
   if (!favoritesAvailable) {
     return;
   }
@@ -526,7 +545,7 @@ function getRandomSong(songs) {
 }
 
 function renderSongSearchResults(songs, query) {
-  songSearchResults.replaceChildren();
+  clearElement(songSearchResults);
   songSearchStatus.textContent = "";
 
   if (!query) {

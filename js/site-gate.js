@@ -4,11 +4,14 @@ const gatePassword = "pyaiod";
 let playerScriptLoaded = false;
 
 function unlockSite() {
-  document.querySelector(".site-gate")?.remove();
+  const gate = document.querySelector(".site-gate");
+  if (gate) {
+    gate.remove();
+  }
   document.body.classList.remove("gated-page");
   if (!playerScriptLoaded && document.querySelector("#daily-song")) {
     const playerScript = document.createElement("script");
-    playerScript.src = new URL("daily-music.js?v=20261101-20", siteGateScriptUrl).href;
+    playerScript.src = new URL("daily-music.js?v=20261102-21", siteGateScriptUrl).href;
     playerScript.defer = true;
     document.body.append(playerScript);
     playerScriptLoaded = true;
