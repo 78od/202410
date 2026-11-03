@@ -512,6 +512,14 @@ audio {
   width: 100%;
 }
 
+.audio-status {
+  min-height: 1.4em;
+  margin: -8px 0 0;
+  color: var(--gold);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 .lyrics-panel {
   width: 100%;
   height: clamp(180px, 30vh, 280px);

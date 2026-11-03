@@ -1,5 +1,6 @@
 const audio = document.querySelector("#daily-song");
 const title = document.querySelector("#music-title");
+const audioStatus = document.querySelector("#audio-status");
 const randomSongButton = document.querySelector("#random-song-button");
 const songSearchInput = document.querySelector("#song-search-input");
 const songSearchResults = document.querySelector("#song-search-results");
@@ -26,6 +27,11 @@ let lyricFollowPaused = false;
 let lyricCatalogPromise;
 let favoriteSongs = new Set();
 let favoritesAvailable = true;
+const audioStallTimeoutMs = 12000;
+const maxAudioRecoveryAttempts = 2;
+let audioStallTimeout = 0;
+let audioRecoveryAttempts = 0;
+let audioRecoveryVersion = 0;
 const lyricOverrides = new Map([
   ["当你.mp3", "当你-林俊杰-歌词.lrc"],
   ["刻在我心底的名字-卢广仲.mp3", "刻在我心底的名字-卢广仲-歌词.lrc"],
@@ -448,6 +454,11 @@ lyricLines.addEventListener("click", (event) => {
 window.addEventListener("resize", refreshLyricScrollPositions);
 
 function showSong(song) {
+  window.clearTimeout(audioStallTimeout);
+  audioStallTimeout = 0;
+  audioRecoveryAttempts = 0;
+  audioRecoveryVersion += 1;
+  audioStatus.textContent = "";
   const isPlaying = !audio.paused;
   currentSong = song;
   title.textContent = song.replace(/\.[^.]+$/, "");
@@ -660,13 +671,83 @@ async function loadLyricCatalog() {
 }
 
 audio.addEventListener("error", () => {
-  title.textContent = "歌曲加载失败，请检查网络或音频文件路径";
+  window.clearTimeout(audioStallTimeout);
+  audioStallTimeout = 0;
+  audioStatus.textContent = "音频加载失败，请检查网络或音频文件路径";
   console.error("音频加载失败", {
     source: audio.currentSrc,
     error: audio.error,
   });
 });
 
+function recoverStalledAudio() {
+  audioStallTimeout = 0;
+  if (audio.paused || audio.ended || !audio.currentSrc) {
+    return;
+  }
+  if (audioRecoveryAttempts >= maxAudioRecoveryAttempts) {
+    audioStatus.textContent = "网络仍不稳定，请重新播放或更换网络后重试";
+    console.warn("音频多次缓冲仍未恢复", {
+      source: audio.currentSrc,
+      currentTime: audio.currentTime,
+    });
+    return;
+  }
+
+  const source = audio.currentSrc;
+  const resumeTime = audio.currentTime;
+  const shouldResume = !audio.paused;
+  const recoveryVersion = ++audioRecoveryVersion;
+  audioRecoveryAttempts += 1;
+  audioStatus.textContent = `音频缓冲停滞，正在重连（${audioRecoveryAttempts}/${maxAudioRecoveryAttempts}）…`;
+
+  const resumePlayback = () => {
+    if (recoveryVersion !== audioRecoveryVersion || audio.currentSrc !== source) {
+      return;
+    }
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      audio.currentTime = Math.min(resumeTime, Math.max(0, audio.duration - 0.1));
+    }
+    if (shouldResume) {
+      audio.play().catch((error) => {
+        audioStatus.textContent = "音频已重新连接，请手动点击播放";
+        console.warn("音频重连后无法自动播放", error);
+      });
+    }
+  };
+
+  audio.addEventListener("loadedmetadata", resumePlayback, { once: true });
+  audio.load();
+}
+
+function scheduleAudioRecovery() {
+  if (audio.paused || audio.ended || !audio.currentSrc) {
+    return;
+  }
+  if (audioRecoveryAttempts >= maxAudioRecoveryAttempts) {
+    audioStatus.textContent = "网络仍不稳定，请重新播放或更换网络后重试";
+    return;
+  }
+
+  window.clearTimeout(audioStallTimeout);
+  audioStatus.textContent = "音频缓冲中…";
+  audioStallTimeout = window.setTimeout(recoverStalledAudio, audioStallTimeoutMs);
+}
+
+audio.addEventListener("waiting", scheduleAudioRecovery);
+audio.addEventListener("stalled", scheduleAudioRecovery);
+audio.addEventListener("pause", () => {
+  window.clearTimeout(audioStallTimeout);
+  audioStallTimeout = 0;
+  if (audioStatus.textContent === "音频缓冲中…") {
+    audioStatus.textContent = "";
+  }
+});
+audio.addEventListener("playing", () => {
+  window.clearTimeout(audioStallTimeout);
+  audioStallTimeout = 0;
+  audioStatus.textContent = "";
+});
 audio.addEventListener("timeupdate", updateLyricScroll);
 audio.addEventListener("seeked", updateLyricScroll);
 audio.addEventListener("pointerdown", () => {
