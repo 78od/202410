@@ -41,8 +41,16 @@ body {
   font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
 }
 
-.gated-page > :not(.site-gate) {
+/* 未启用 JavaScript 时，让提示文案保持可见，避免出现纯黑空白页 */
+.gated-page > :not(.site-gate):not(noscript) {
   display: none;
+}
+
+.no-script-note {
+  margin: 0;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
 }
 
 .site-gate {
@@ -331,13 +339,6 @@ img {
   transform: rotate(-8deg);
 }
 
-.album-cover-second-heaven {
-  top: 3%;
-  right: 2%;
-  width: 9%;
-  transform: rotate(7deg);
-}
-
 .album-cover-tears {
   top: 24%;
   left: 0;
@@ -489,15 +490,6 @@ img {
   border-color: rgba(178, 235, 255, 0.95);
   box-shadow: 0 0 20px rgba(77, 195, 255, 0.42), 0 12px 28px rgba(0, 0, 0, 0.65);
   transform: rotate(8deg);
-}
-
-/* 音乐装饰图片持续旋转，增强播放器区域的动态感 */
-.rotate {
-  width: clamp(96px, 35vw, 140px);
-  height: auto;
-  border: 2px solid rgba(122, 204, 255, 0.6);
-  border-radius: 50%;
-  animation: spin 3.5s linear infinite;
 }
 
 .music-title {
@@ -1162,12 +1154,6 @@ audio {
 /* 榜单底部的“持续更新”标题 */
 .update-title {
   margin-top: 24px !important;
-}
-
-/* 音乐装饰图的旋转关键帧 */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 /* ==================== 移动端适配 ==================== */

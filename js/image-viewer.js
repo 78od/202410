@@ -223,6 +223,10 @@ document.addEventListener("dblclick", (event) => {
     return;
   }
 
+  if (event.target.closest("a, button")) {
+    return;
+  }
+
   event.preventDefault();
   showImageViewer(event.target);
 });

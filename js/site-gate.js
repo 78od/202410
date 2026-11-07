@@ -1,5 +1,5 @@
 const siteGateScriptUrl = document.currentScript.src;
-const dailyMusicAssetVersion = "13dc7ccb88c7";
+const dailyMusicAssetVersion = "ea44cf1b892b";
 const gateStorageKey = "202410-site-access-granted";
 const gatePassword = "pyaiod";
 let playerScriptLoaded = false;

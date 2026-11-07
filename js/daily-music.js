@@ -23,6 +23,8 @@ let lyricFiles = [];
 let lyricCatalogAvailable = false;
 let currentLyrics = [];
 let lyricScrollPositions = [];
+let lyricScrollTarget = 0;
+let lyricResizeFrame = 0;
 let activeLyricIndex = -1;
 let lyricRequestId = 0;
 let lyricScrollAnimationFrame = 0;
@@ -31,6 +33,8 @@ let lyricFollowPaused = false;
 let lyricCatalogPromise;
 let favoriteSongs = new Set();
 let favoritesAvailable = true;
+let playlistSongs = [];
+let searchInputFrame = 0;
 const audioStallTimeoutMs = 12000;
 const maxAudioRecoveryAttempts = 2;
 let audioStallTimeout = 0;
@@ -99,6 +103,34 @@ function normalizeTrackText(value) {
     .normalize("NFKC")
     .toLocaleLowerCase()
     .replace(/[\s\-－_()（）·.,!！&/]+/g, "");
+}
+
+// 歌词文件开头的制作信息行（词/曲/编曲/录音师/OP…）统一按“标签：内容”的形式出现，
+// 这里按标签关键词判断，避免把“Jay：…”“合：…”这类对唱标记一起删掉。
+const creditLabelPattern = new RegExp(
+  "词|曲|编曲|改编|原唱|制作|监制|^监|出品|发行|版权|统筹|宣推|推广|企划|企宣|策划|经纪|助理|" +
+    "妆发|工程|编程|编成|录音|混音|母带|录制|人声|配唱|和声|合声|和音|演唱|吉他|贝斯|鼓|" +
+    "钢琴|琴|弦乐|提琴|簧管|笛|童声|编辑|键盘|乌克丽丽|" +
+    "\\b(?:op|sp|studio|bass|drums?|guitars?|strings?|composer|composed|lyricist|lyrics?|producer|" +
+    "mixing?|master(?:ing)?|record(?:ing|ed)?|vocals?|piano|keys?|keyboards?|arrangement|adapt|" +
+    "assistant|engineer)\\b",
+  "i",
+);
+const creditPunctuationPattern = /[，。！？、；]/;
+const creditPrefixPattern = /^(?:lyrics by|composed by|tme.*版权|作词|作曲|编曲|制作|监制|演唱|出品)/i;
+
+function isCreditLine(text) {
+  const separatorIndex = text.search(/[：:]/);
+  if (separatorIndex <= 0 || separatorIndex > 40) {
+    return false;
+  }
+
+  const label = text.slice(0, separatorIndex).trim();
+  if (!label || creditPunctuationPattern.test(label)) {
+    return false;
+  }
+
+  return creditLabelPattern.test(label);
 }
 
 function clearElement(element) {
@@ -202,7 +234,7 @@ function parseLrc(text, metadata) {
 
     timestampPattern.lastIndex = 0;
     const lyric = line.replace(timestampPattern, "").trim();
-    if (!lyric || /^(lyrics by|composed by|tme.*版权|作词|作曲|编曲|制作|监制|演唱|出品|词[:：]|曲[:：])/i.test(lyric)) {
+    if (!lyric || isCreditLine(lyric) || creditPrefixPattern.test(lyric)) {
       continue;
     }
 
@@ -246,8 +278,8 @@ function decodeLyric(buffer) {
     try {
       return new TextDecoder("gb18030", { fatal: true }).decode(buffer);
     } catch (gb18030Error) {
-        console.error("歌词解码失败", gb18030Error);
-        throw new Error("歌词文件编码不是 UTF-8 或 GB18030");
+      console.error("歌词解码失败", gb18030Error);
+      throw new Error("歌词文件编码不是 UTF-8 或 GB18030");
     }
   }
 }
@@ -303,7 +335,7 @@ async function loadLyrics(song) {
 
     title.textContent = `${match.metadata.title} - ${match.metadata.artist}`;
     if (entries.length === 0) {
-      lyricsStatus.textContent = "这首歌的歌词文件没有可滚动歌词";
+      lyricsStatus.textContent = "暂无对应歌词";
       return;
     }
 
@@ -350,9 +382,17 @@ function refreshLyricScrollPositions() {
 }
 
 function scrollLyricsTo(target) {
+  const destination = Math.max(0, target);
+  if (
+    lyricScrollAnimationFrame !== 0 &&
+    Math.abs(destination - lyricScrollTarget) < 1
+  ) {
+    return;
+  }
+
   cancelLyricScrollAnimation();
   const start = lyricLines.scrollTop;
-  const destination = Math.max(0, target);
+  lyricScrollTarget = destination;
   if (
     (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
     Math.abs(destination - start) < 1
@@ -463,8 +503,6 @@ function resumeLyricFollow() {
 lyricLines.addEventListener("wheel", pauseLyricFollow, { passive: true });
 lyricLines.addEventListener("touchmove", pauseLyricFollow, { passive: true });
 lyricLines.addEventListener("pointerdown", pauseLyricFollow);
-window.addEventListener("pointerup", pauseLyricFollow);
-window.addEventListener("pointercancel", pauseLyricFollow);
 lyricLines.addEventListener("keydown", (event) => {
   if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) {
     pauseLyricFollow();
@@ -488,7 +526,15 @@ lyricLines.addEventListener("click", (event) => {
   }
 });
 
-window.addEventListener("resize", refreshLyricScrollPositions);
+window.addEventListener("resize", () => {
+  if (lyricResizeFrame !== 0) {
+    return;
+  }
+  lyricResizeFrame = window.requestAnimationFrame(() => {
+    lyricResizeFrame = 0;
+    refreshLyricScrollPositions();
+  });
+});
 
 function showSong(song) {
   window.clearTimeout(audioStallTimeout);
@@ -645,43 +691,15 @@ async function loadPlaylist() {
     if (!Array.isArray(songs) || songs.length === 0 || songs.some((song) => typeof song !== "string")) {
       throw new Error("歌曲清单格式无效或为空");
     }
+    playlistSongs = songs;
     playlistRetryButton.hidden = true;
     loadFavorites();
     showSong(songs[Math.floor(Math.random() * songs.length)]);
     songSearchInput.disabled = false;
-    songSearchInput.addEventListener("input", () => {
-      renderSongSearchResults(songs, songSearchInput.value.trim());
-    });
     randomSongButton.disabled = songs.length < 2;
-    randomSongButton.addEventListener("click", () => {
-      if (songs.length > 1) {
-        showSong(getRandomSong(songs));
-      }
-    });
     favoriteSongButton.disabled = !favoritesAvailable;
     favoritesToggleButton.disabled = !favoritesAvailable;
-    favoriteSongButton.addEventListener("click", () => {
-      saveFavorite(currentSong, !favoriteSongs.has(currentSong), songs);
-    });
-    favoritesToggleButton.addEventListener("click", () => {
-      const isExpanded = favoritesToggleButton.getAttribute("aria-expanded") === "true";
-      favoritesToggleButton.setAttribute("aria-expanded", String(!isExpanded));
-      favoriteSongList.hidden = isExpanded;
-      if (!isExpanded) {
-        renderFavoriteList(songs);
-      }
-    });
     renderFavoriteList(songs);
-    audio.addEventListener("ended", () => {
-      if (audio.loop || songs.length < 2) {
-        return;
-      }
-
-      showSong(getRandomSong(songs));
-      audio.play().catch((error) => {
-        console.warn("下一首歌曲无法自动播放，请手动点击播放。", error);
-      });
-    });
   } catch (error) {
     title.textContent = "歌曲清单加载失败";
     audioStatus.textContent = "无法加载歌曲列表，请检查网络后重试";
@@ -794,8 +812,8 @@ audio.addEventListener("playing", () => {
   audioStatus.textContent = "";
   audioRetryButton.hidden = true;
 });
-audio.addEventListener("timeupdate", updateLyricScroll);
-audio.addEventListener("seeked", updateLyricScroll);
+audio.addEventListener("timeupdate", () => updateLyricScroll());
+audio.addEventListener("seeked", () => updateLyricScroll(true));
 audio.addEventListener("pointerdown", () => {
   audio.preload = "auto";
   audio.fetchPriority = "high";
@@ -809,6 +827,49 @@ audio.addEventListener("keydown", (event) => {
 audio.addEventListener("play", () => {
   audio.preload = "auto";
   audio.fetchPriority = "high";
+});
+
+songSearchInput.addEventListener("input", () => {
+  if (searchInputFrame !== 0) {
+    return;
+  }
+  searchInputFrame = window.requestAnimationFrame(() => {
+    searchInputFrame = 0;
+    renderSongSearchResults(playlistSongs, songSearchInput.value.trim());
+  });
+});
+
+randomSongButton.addEventListener("click", () => {
+  if (playlistSongs.length > 1) {
+    showSong(getRandomSong(playlistSongs));
+  }
+});
+
+favoriteSongButton.addEventListener("click", () => {
+  if (playlistSongs.length === 0) {
+    return;
+  }
+  saveFavorite(currentSong, !favoriteSongs.has(currentSong), playlistSongs);
+});
+
+favoritesToggleButton.addEventListener("click", () => {
+  const isExpanded = favoritesToggleButton.getAttribute("aria-expanded") === "true";
+  favoritesToggleButton.setAttribute("aria-expanded", String(!isExpanded));
+  favoriteSongList.hidden = isExpanded;
+  if (!isExpanded) {
+    renderFavoriteList(playlistSongs);
+  }
+});
+
+audio.addEventListener("ended", () => {
+  if (audio.loop || playlistSongs.length < 2) {
+    return;
+  }
+
+  showSong(getRandomSong(playlistSongs));
+  audio.play().catch((error) => {
+    console.warn("下一首歌曲无法自动播放，请手动点击播放。", error);
+  });
 });
 
 loadPlaylist();

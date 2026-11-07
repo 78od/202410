@@ -46,11 +46,14 @@ $assetVersionByName = @{
   "daily-music.js" = $dailyMusicVersion
 }
 $encodedUpdate = [System.Net.WebUtility]::HtmlEncode($Update)
+# 替换串会按正则替换模式解析，$ 是特殊字符，需要转义成字面量
+$encodedUpdate = $encodedUpdate.Replace('$', '$$')
 $badgeLabel = ([char]0x4eca).ToString() + ([char]0x65e5) + ([char]0x66f4) + ([char]0x65b0) + ([char]0xff1a)
 $badgeReplacement = '<div class="badge">' + $badgeLabel + $encodedUpdate + '</div>'
 
 foreach ($file in $htmlFiles) {
   $content = [System.IO.File]::ReadAllText($file.FullName)
+  $original = $content
   $content = $versionPattern.Replace($content, {
     param($match)
     $assetName = [System.IO.Path]::GetFileName($match.Groups["url"].Value)
@@ -62,7 +65,9 @@ foreach ($file in $htmlFiles) {
   if ($file.FullName -eq $indexFile) {
     $content = $badgePattern.Replace($content, $badgeReplacement, 1)
   }
-  [System.IO.File]::WriteAllText($file.FullName, $content, $utf8WithoutBom)
+  if ($content -ne $original) {
+    [System.IO.File]::WriteAllText($file.FullName, $content, $utf8WithoutBom)
+  }
 }
 
 Write-Output "Updated the homepage notice and static-asset hashes; unchanged assets keep their cache."
