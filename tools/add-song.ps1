@@ -46,7 +46,7 @@ function Write-TextFile([string]$Path, [string]$Text) {
   [System.IO.File]::WriteAllText($Path, $Text, $utf8)
 }
 
-function Normalize-TrackText([string]$Text) {
+function ConvertTo-NormalizedTrackText([string]$Text) {
   $normalized = $Text.Replace('&amp;', '&').Normalize([System.Text.NormalizationForm]::FormKC).ToLowerInvariant()
   return $normalized -replace '[\s\-－_()（）·.,!！&/]+', ''
 }
@@ -119,7 +119,7 @@ foreach ($name in $danglingLyrics) {
 }
 foreach ($song in $playlist) {
   $songStem = [System.IO.Path]::GetFileNameWithoutExtension($song)
-  $normalizedSong = Normalize-TrackText $songStem
+  $normalizedSong = ConvertTo-NormalizedTrackText $songStem
   $hasMatch = $false
 
   foreach ($lyricFile in $lrcFiles) {
@@ -128,8 +128,8 @@ foreach ($song in $playlist) {
     $separator = $lyricStem.IndexOf('-')
     if ($separator -lt 0) { continue }
 
-    $normalizedTitle = Normalize-TrackText $lyricStem.Substring(0, $separator)
-    $normalizedArtist = Normalize-TrackText $lyricStem.Substring($separator + 1)
+    $normalizedTitle = ConvertTo-NormalizedTrackText $lyricStem.Substring(0, $separator)
+    $normalizedArtist = ConvertTo-NormalizedTrackText $lyricStem.Substring($separator + 1)
     if (
       $normalizedSong -eq $normalizedTitle -or
       $normalizedSong -eq ($normalizedTitle + $normalizedArtist) -or

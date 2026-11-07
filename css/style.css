@@ -299,7 +299,7 @@ img {
   right: 3%;
   width: 12%;
   aspect-ratio: 1;
-  object-fit: cover;
+  background: url("../music/mp/player-artwork.jpg") 33.333% 100% / 400% 300% no-repeat;
   border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
@@ -315,7 +315,7 @@ img {
   overflow: hidden;
   background:
     linear-gradient(rgba(8, 8, 8, 0.72), rgba(8, 8, 8, 0.82)),
-    url("../music/mp/第二天堂(江南)-600.jpg") center / cover no-repeat;
+    url("../music/mp/player-artwork.jpg") 66.667% 100% / 400% 300% no-repeat;
   border-radius: inherit;
   pointer-events: none;
 }
@@ -325,7 +325,9 @@ img {
   display: block;
   height: auto;
   aspect-ratio: 1;
-  object-fit: cover;
+  background-image: url("../music/mp/player-artwork.jpg");
+  background-size: 400% 300%;
+  background-repeat: no-repeat;
   border: 2px solid rgba(255, 255, 255, 0.78);
   border-radius: 12px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
@@ -336,6 +338,7 @@ img {
   top: 2%;
   left: 2%;
   width: 9%;
+  background-position: 0% 0%;
   transform: rotate(-8deg);
 }
 
@@ -343,6 +346,7 @@ img {
   top: 24%;
   left: 0;
   width: 7%;
+  background-position: 33.333% 0%;
   transform: rotate(-15deg);
 }
 
@@ -350,6 +354,7 @@ img {
   top: 29%;
   right: 0;
   width: 7%;
+  background-position: 66.667% 0%;
   transform: rotate(9deg);
 }
 
@@ -359,6 +364,7 @@ img {
   left: 0;
   width: 16%;
   opacity: 0.82;
+  background-position: 100% 0%;
   transform: rotate(13deg);
 }
 
@@ -366,6 +372,7 @@ img {
   top: 54%;
   right: 1%;
   width: 7%;
+  background-position: 0% 50%;
   transform: rotate(-10deg);
 }
 
@@ -373,6 +380,7 @@ img {
   bottom: 18%;
   left: 0;
   width: 7%;
+  background-position: 33.333% 50%;
   transform: rotate(-13deg);
 }
 
@@ -380,6 +388,7 @@ img {
   right: 0;
   bottom: 20%;
   width: 7%;
+  background-position: 66.667% 50%;
   transform: rotate(11deg);
 }
 
@@ -387,6 +396,7 @@ img {
   bottom: 2%;
   left: 3%;
   width: 8%;
+  background-position: 100% 50%;
   transform: rotate(13deg);
 }
 
@@ -394,6 +404,7 @@ img {
   right: 3%;
   bottom: 3%;
   width: 8%;
+  background-position: 0% 100%;
   transform: rotate(-5deg);
 }
 
