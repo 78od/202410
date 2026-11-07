@@ -3,14 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="css/style.css?v=20261107-2" />
+    <meta name="description" content="欧弟好好读书：精选合集、音乐播放器、照片和特色榜单。" />
+    <meta name="theme-color" content="#080808" />
+    <title>欧弟好好读书｜镇站之宝</title>
+    <link rel="stylesheet" href="css/style.css?v=23d4643190ed" />
   </head>
   <body class="gated-page">
     <main id="site-content">
     <div class="container">
       <div class="topbar">
         <div class="brand">欧弟好好读书</div>
-        <div class="badge">今日更新：新增双击图片浮窗预览</div>
+        <div class="badge">今日更新：补充页面信息、触屏预览与加载重试</div>
       </div>
 
       <div class="hero">
@@ -42,8 +45,11 @@
           <h3 class="music-title" id="music-title">正在随机选歌…</h3>
           <audio id="daily-song" controls preload="none"></audio>
           <p class="audio-status" id="audio-status" role="status" aria-live="polite"></p>
+          <button class="media-retry-button" id="audio-retry-button" type="button" hidden>重试播放</button>
+          <button class="media-retry-button" id="playlist-retry-button" type="button" hidden>重试加载歌曲列表</button>
           <section class="lyrics-panel" aria-label="歌词">
             <p class="lyrics-status" id="lyrics-status" role="status" aria-live="polite">正在载入歌词…</p>
+            <button class="media-retry-button" id="lyrics-retry-button" type="button" hidden>重试加载歌词</button>
             <ul class="lyric-lines" id="lyric-lines" aria-label="滚动歌词" hidden></ul>
           </section>
           <div class="song-search">
@@ -99,7 +105,7 @@
       </div>
     </div>
     </main>
-    <script src="js/site-gate.js?v=20261107-1" defer></script>
-    <script src="js/image-viewer.js?v=20261107-1" defer></script>
+    <script src="js/site-gate.js?v=72892bcbeef4" defer></script>
+    <script src="js/image-viewer.js?v=054d84bcccdb" defer></script>
   </body>
 </html>

@@ -1,12 +1,15 @@
 const audio = document.querySelector("#daily-song");
 const title = document.querySelector("#music-title");
 const audioStatus = document.querySelector("#audio-status");
+const audioRetryButton = document.querySelector("#audio-retry-button");
+const playlistRetryButton = document.querySelector("#playlist-retry-button");
 const randomSongButton = document.querySelector("#random-song-button");
 const loopSongButton = document.querySelector("#loop-song-button");
 const songSearchInput = document.querySelector("#song-search-input");
 const songSearchResults = document.querySelector("#song-search-results");
 const songSearchStatus = document.querySelector("#song-search-status");
 const lyricsStatus = document.querySelector("#lyrics-status");
+const lyricsRetryButton = document.querySelector("#lyrics-retry-button");
 const lyricLines = document.querySelector("#lyric-lines");
 const favoriteSongButton = document.querySelector("#favorite-song-button");
 const favoritesToggleButton = document.querySelector("#favorites-toggle-button");
@@ -58,6 +61,30 @@ audio.addEventListener("volumechange", () => {
   } catch (error) {
     console.error("音量设置保存失败", error);
   }
+});
+
+audioRetryButton.addEventListener("click", () => {
+  audioRetryButton.hidden = true;
+  audioStatus.textContent = "正在重试音频加载…";
+  audio.load();
+  audio.play().catch((error) => {
+    if (!audio.error) {
+      audioStatus.textContent = "音频已准备好，请点击播放器开始播放";
+    }
+    console.warn("音频重试后无法自动播放", error);
+  });
+});
+
+playlistRetryButton.addEventListener("click", () => {
+  void loadPlaylist();
+});
+
+lyricsRetryButton.addEventListener("click", async () => {
+  lyricsRetryButton.disabled = true;
+  lyricCatalogAvailable = false;
+  lyricCatalogPromise = loadLyricCatalog();
+  await loadLyrics(currentSong);
+  lyricsRetryButton.disabled = false;
 });
 
 loopSongButton.addEventListener("click", () => {
@@ -240,6 +267,7 @@ async function loadLyrics(song) {
   }
   lyricLines.hidden = true;
   lyricsStatus.hidden = false;
+  lyricsRetryButton.hidden = true;
   lyricsStatus.textContent = "正在载入歌词…";
 
   if (!lyricCatalogAvailable) {
@@ -249,6 +277,7 @@ async function loadLyrics(song) {
     }
     if (!catalogLoaded) {
       lyricsStatus.textContent = "歌词索引加载失败，请检查歌词文件";
+      lyricsRetryButton.hidden = false;
       return;
     }
   }
@@ -303,6 +332,7 @@ async function loadLyrics(song) {
   } catch (error) {
     if (requestId === lyricRequestId) {
       lyricsStatus.textContent = "歌词加载失败，请检查歌词文件";
+      lyricsRetryButton.hidden = false;
     }
     console.error("歌词加载失败", { song, lyricFile: match.file, error });
   }
@@ -466,6 +496,7 @@ function showSong(song) {
   audioRecoveryAttempts = 0;
   audioRecoveryVersion += 1;
   audioStatus.textContent = "";
+  audioRetryButton.hidden = true;
   const isPlaying = !audio.paused;
   currentSong = song;
   title.textContent = song.replace(/\.[^.]+$/, "");
@@ -602,6 +633,7 @@ function renderSongSearchResults(songs, query) {
 }
 
 async function loadPlaylist() {
+  playlistRetryButton.disabled = true;
   lyricCatalogPromise = loadLyricCatalog();
   try {
     const response = await fetch(new URL("playlist.json", musicDirectory));
@@ -613,7 +645,7 @@ async function loadPlaylist() {
     if (!Array.isArray(songs) || songs.length === 0 || songs.some((song) => typeof song !== "string")) {
       throw new Error("歌曲清单格式无效或为空");
     }
-    loadFavorites();
+    playlistRetryButton.hidden = true;
     loadFavorites();
     showSong(songs[Math.floor(Math.random() * songs.length)]);
     songSearchInput.disabled = false;
@@ -651,8 +683,12 @@ async function loadPlaylist() {
       });
     });
   } catch (error) {
-    title.textContent = "歌曲加载失败，请检查歌曲清单";
+    title.textContent = "歌曲清单加载失败";
+    audioStatus.textContent = "无法加载歌曲列表，请检查网络后重试";
+    playlistRetryButton.hidden = false;
     console.error(error);
+  } finally {
+    playlistRetryButton.disabled = false;
   }
 }
 
@@ -681,6 +717,8 @@ audio.addEventListener("error", () => {
   window.clearTimeout(audioStallTimeout);
   audioStallTimeout = 0;
   audioStatus.textContent = "音频加载失败，请检查网络或音频文件路径";
+  audioRetryButton.hidden = false;
+  audioRetryButton.disabled = false;
   console.error("音频加载失败", {
     source: audio.currentSrc,
     error: audio.error,
@@ -754,6 +792,7 @@ audio.addEventListener("playing", () => {
   window.clearTimeout(audioStallTimeout);
   audioStallTimeout = 0;
   audioStatus.textContent = "";
+  audioRetryButton.hidden = true;
 });
 audio.addEventListener("timeupdate", updateLyricScroll);
 audio.addEventListener("seeked", updateLyricScroll);

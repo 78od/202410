@@ -1,4 +1,5 @@
 const siteGateScriptUrl = document.currentScript.src;
+const dailyMusicAssetVersion = "13dc7ccb88c7";
 const gateStorageKey = "202410-site-access-granted";
 const gatePassword = "pyaiod";
 let playerScriptLoaded = false;
@@ -11,7 +12,9 @@ function unlockSite() {
   document.body.classList.remove("gated-page");
   if (!playerScriptLoaded && document.querySelector("#daily-song")) {
     const playerScript = document.createElement("script");
-    playerScript.src = new URL("daily-music.js?v=20261107-1", siteGateScriptUrl).href;
+    const playerScriptUrl = new URL("daily-music.js", siteGateScriptUrl);
+    playerScriptUrl.searchParams.set("v", dailyMusicAssetVersion);
+    playerScript.src = playerScriptUrl.href;
     playerScript.defer = true;
     document.body.append(playerScript);
     playerScriptLoaded = true;

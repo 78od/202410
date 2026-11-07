@@ -520,7 +520,31 @@ audio {
   text-align: center;
 }
 
+.media-retry-button,
+.image-viewer-retry {
+  padding: 8px 14px;
+  color: var(--accent-light);
+  font: inherit;
+  background: rgba(90, 169, 255, 0.12);
+  border: 1px solid rgba(90, 169, 255, 0.7);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.media-retry-button:focus-visible,
+.image-viewer-retry:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 3px;
+}
+
+.media-retry-button[hidden],
+.image-viewer-retry[hidden] {
+  display: none;
+}
+
 .lyrics-panel {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: clamp(180px, 30vh, 280px);
   overflow: hidden;
@@ -531,7 +555,8 @@ audio {
 
 .lyrics-status {
   display: grid;
-  height: 100%;
+  flex: 1 1 auto;
+  height: auto;
   margin: 0;
   padding: 18px;
   color: var(--muted);
@@ -543,13 +568,21 @@ audio {
   display: none;
 }
 
+.lyrics-panel > .media-retry-button {
+  align-self: center;
+  flex: 0 0 auto;
+  margin: 0 12px 12px;
+}
+
 .lyric-lines {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
   gap: 12px;
   width: 100%;
-  height: 100%;
+  height: auto;
+  min-height: 0;
   margin: 0;
   padding: 90px 16px;
   overflow-y: auto;
@@ -943,12 +976,19 @@ audio {
 
 .image-viewer-trigger {
   cursor: zoom-in;
+  touch-action: manipulation;
+}
+
+.image-viewer-trigger:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 3px;
 }
 
 .image-viewer {
   width: min(94vw, 1200px);
   max-width: none;
   max-height: 94vh;
+  max-height: 94dvh;
   padding: 0;
   overflow: visible;
   color: var(--text);
@@ -958,7 +998,6 @@ audio {
 
 .image-viewer::backdrop {
   background: rgba(0, 0, 0, 0.88);
-  backdrop-filter: blur(5px);
 }
 
 .image-viewer-content {
@@ -972,7 +1011,8 @@ audio {
 .image-viewer-image {
   width: auto;
   max-width: 100%;
-  max-height: 88vh;
+  max-height: 84vh;
+  max-height: 84dvh;
   object-fit: contain;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -987,6 +1027,14 @@ audio {
 
 .image-viewer-caption:empty {
   display: none;
+}
+
+.image-viewer-image[hidden] {
+  display: none;
+}
+
+.image-viewer-retry {
+  margin-top: 12px;
 }
 
 .image-viewer-close {
@@ -1007,6 +1055,44 @@ audio {
   border-radius: 50%;
   cursor: pointer;
   place-items: center;
+}
+
+.image-viewer-nav {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 2rem;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+  place-items: center;
+  transform: translateY(-50%);
+}
+
+.image-viewer-previous {
+  left: 10px;
+}
+
+.image-viewer-next {
+  right: 10px;
+}
+
+.image-viewer-nav[hidden] {
+  display: none;
+}
+
+.image-viewer-nav:focus-visible,
+.image-viewer-close:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 3px;
 }
 
 /* ==================== 详情页和榜单页 ==================== */
