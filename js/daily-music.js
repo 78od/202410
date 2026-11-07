@@ -244,9 +244,12 @@ function parseLrc(text, metadata) {
         Number(seconds) +
         (fraction ? Number(`0.${fraction}`) : 0);
       const normalizedLyric = normalizeTrackText(lyric);
+      // 开头几秒常有一行“歌名 - 歌手”的版权信息，文件名与歌词内写法不一致时也要识别出来
+      const looksLikeTitleLine =
+        normalizedLyric.includes(normalizedTitle) || /[-–—]/.test(lyric);
       if (
         time <= 5 &&
-        normalizedLyric.includes(normalizedTitle) &&
+        looksLikeTitleLine &&
         normalizedArtists.every((artist) => normalizedLyric.includes(artist))
       ) {
         continue;

@@ -9,6 +9,8 @@
 #
 # 作用：把 music\*.mp3 与 music\lyric\*.lrc 目录里的新文件同步进
 #       music\playlist.json 与 music\lyric\index.json，并检查一批常见的数据问题。
+# 每次运行都会把同样的内容写进 %TEMP%\add-song-report.txt（UTF-8），
+# 终端字体显示不了中文时，用编辑器打开这个文件看即可。
 # 注意：本文件请保持 UTF-8 with BOM，否则 Windows PowerShell 5.1 会把中文读成乱码。
 
 $ErrorActionPreference = 'Stop'
@@ -18,13 +20,21 @@ $musicDir = Join-Path $siteRoot 'music'
 $lyricDir = Join-Path $musicDir 'lyric'
 $playlistPath = Join-Path $musicDir 'playlist.json'
 $lyricIndexPath = Join-Path $lyricDir 'index.json'
+$reportPath = Join-Path $env:TEMP 'add-song-report.txt'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
+$utf8Bom = New-Object System.Text.UTF8Encoding($true)
 $minDurationSeconds = 90
+$reportLines = New-Object System.Collections.Generic.List[string]
 
 foreach ($required in @($playlistPath, $lyricIndexPath)) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "缺少文件：$required"
   }
+}
+
+function Say([string]$Text) {
+  $script:reportLines.Add($Text)
+  Write-Output $Text
 }
 
 function Read-TextFile([string]$Path) {
@@ -78,7 +88,7 @@ function Get-Mp3Durations([string]$Directory) {
       }
     }
   } catch {
-    Write-Warning "读取音频时长失败，跳过时长检查：$($_.Exception.Message)"
+    Say "（读取音频时长失败，跳过时长检查：$($_.Exception.Message)）"
   }
   return $durations
 }
@@ -102,6 +112,10 @@ foreach ($name in $danglingLyrics) {
   $problems.Add("歌词索引里有、磁盘上没有：$name")
 }
 foreach ($name in $lrcFiles) {
+  if ($name -ne $name.Trim()) {
+    $problems.Add("文件名首尾有多余空格，删除后歌词才能匹配：[$name]")
+    continue
+  }
   if ($name -notmatch '-.*-歌词\.lrc$') {
     $problems.Add("歌词文件名不符合「歌名-歌手-歌词.lrc」，可能匹配不到歌曲：$name")
     continue
@@ -119,29 +133,36 @@ foreach ($entry in $durations.GetEnumerator()) {
   }
 }
 
-Write-Output "音频文件 $($mp3Files.Count) 个，歌单 $($playlist.Count) 条"
-Write-Output "歌词文件 $($lrcFiles.Count) 个，歌词索引 $($lyricIndex.Count) 条"
-Write-Output ""
+Say "音频文件 $($mp3Files.Count) 个，歌单 $($playlist.Count) 条"
+Say "歌词文件 $($lrcFiles.Count) 个，歌词索引 $($lyricIndex.Count) 条"
+Say ""
 
 if ($problems.Count -gt 0) {
-  Write-Output "发现 $($problems.Count) 个问题："
-  $problems | ForEach-Object { Write-Output "  - $_" }
-  Write-Output ""
+  Say "发现 $($problems.Count) 个问题："
+  foreach ($item in $problems) { Say "  - $item" }
+  Say ""
+} else {
+  Say "未发现数据问题。"
+  Say ""
 }
 
 if ($newSongs.Count -eq 0 -and $newLyrics.Count -eq 0) {
-  Write-Output "歌单与歌词索引已与目录同步。"
+  Say "歌单与歌词索引已与目录同步。"
+  [System.IO.File]::WriteAllText($reportPath, ($reportLines -join "`r`n") + "`r`n", $utf8Bom)
+  Write-Output "report: $reportPath"
   exit 0
 }
 
-Write-Output "待新增到歌单：$($newSongs.Count) 首"
-$newSongs | ForEach-Object { Write-Output "  + $_" }
-Write-Output "待新增到歌词索引：$($newLyrics.Count) 个"
-$newLyrics | ForEach-Object { Write-Output "  + $_" }
+Say "待新增到歌单：$($newSongs.Count) 首"
+foreach ($name in $newSongs) { Say "  + $name" }
+Say "待新增到歌词索引：$($newLyrics.Count) 个"
+foreach ($name in $newLyrics) { Say "  + $name" }
 
 if ($Check) {
-  Write-Output ""
-  Write-Output "（-Check 模式，未写入任何文件）"
+  Say ""
+  Say "（-Check 模式，未写入任何文件）"
+  [System.IO.File]::WriteAllText($reportPath, ($reportLines -join "`r`n") + "`r`n", $utf8Bom)
+  Write-Output "report: $reportPath"
   exit 0
 }
 
@@ -150,6 +171,9 @@ Add-NameList $lyricIndexPath $newLyrics
 
 $afterPlaylist = Get-NameList $playlistPath
 $afterLyricIndex = Get-NameList $lyricIndexPath
-Write-Output ""
-Write-Output "已写入：歌单 $($afterPlaylist.Count) 条，歌词索引 $($afterLyricIndex.Count) 条。"
-Write-Output "提示：新增歌曲不改变静态资源版本号，无需再跑 update-site.ps1。"
+Say ""
+Say "已写入：歌单 $($afterPlaylist.Count) 条，歌词索引 $($afterLyricIndex.Count) 条。"
+Say "提示：新增歌曲不改变静态资源版本号，无需再跑 update-site.ps1。"
+
+[System.IO.File]::WriteAllText($reportPath, ($reportLines -join "`r`n") + "`r`n", $utf8Bom)
+Write-Output "report: $reportPath"
