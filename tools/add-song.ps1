@@ -9,8 +9,7 @@
 #
 # 作用：把 music\*.mp3 与 music\lyric\*.lrc 目录里的新文件同步进
 #       music\playlist.json 与 music\lyric\index.json，并检查一批常见的数据问题。
-# 每次运行都会把同样的内容写进 %TEMP%\add-song-report.txt（UTF-8），
-# 终端字体显示不了中文时，用编辑器打开这个文件看即可。
+# 控制台和管道统一使用 UTF-8；报告文件使用带 BOM 的 UTF-8，兼容 Windows PowerShell 5.1。
 # 注意：本文件请保持 UTF-8 with BOM，否则 Windows PowerShell 5.1 会把中文读成乱码。
 
 $ErrorActionPreference = 'Stop'
@@ -23,6 +22,8 @@ $lyricIndexPath = Join-Path $lyricDir 'index.json'
 $reportPath = Join-Path $env:TEMP 'add-song-report.txt'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 $utf8Bom = New-Object System.Text.UTF8Encoding($true)
+[Console]::OutputEncoding = $utf8
+$OutputEncoding = $utf8
 $minDurationSeconds = 90
 $reportLines = New-Object System.Collections.Generic.List[string]
 
@@ -147,7 +148,11 @@ if ($problems.Count -gt 0) {
 }
 
 if ($newSongs.Count -eq 0 -and $newLyrics.Count -eq 0) {
-  Say "歌单与歌词索引已与目录同步。"
+  if ($problems.Count -gt 0) {
+    Say "没有待新增的文件，但仍发现数据问题，请处理后重试。"
+  } else {
+    Say "歌单与歌词索引已与目录同步。"
+  }
   [System.IO.File]::WriteAllText($reportPath, ($reportLines -join "`r`n") + "`r`n", $utf8Bom)
   Write-Output "report: $reportPath"
   exit 0
