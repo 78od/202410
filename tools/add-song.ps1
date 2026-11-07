@@ -46,6 +46,11 @@ function Write-TextFile([string]$Path, [string]$Text) {
   [System.IO.File]::WriteAllText($Path, $Text, $utf8)
 }
 
+function Normalize-TrackText([string]$Text) {
+  $normalized = $Text.Replace('&amp;', '&').Normalize([System.Text.NormalizationForm]::FormKC).ToLowerInvariant()
+  return $normalized -replace '[\s\-－_()（）·.,!！&/]+', ''
+}
+
 function Get-NameList([string]$Path) {
   $text = Read-TextFile $Path
   $parsed = $text | ConvertFrom-Json
@@ -111,6 +116,33 @@ foreach ($name in $danglingSongs) {
 }
 foreach ($name in $danglingLyrics) {
   $problems.Add("歌词索引里有、磁盘上没有：$name")
+}
+foreach ($song in $playlist) {
+  $songStem = [System.IO.Path]::GetFileNameWithoutExtension($song)
+  $normalizedSong = Normalize-TrackText $songStem
+  $hasMatch = $false
+
+  foreach ($lyricFile in $lrcFiles) {
+    if ($lyricFile -notmatch '-歌词\.lrc$') { continue }
+    $lyricStem = $lyricFile.Substring(0, $lyricFile.Length - '-歌词.lrc'.Length).Replace('&amp;', '&')
+    $separator = $lyricStem.IndexOf('-')
+    if ($separator -lt 0) { continue }
+
+    $normalizedTitle = Normalize-TrackText $lyricStem.Substring(0, $separator)
+    $normalizedArtist = Normalize-TrackText $lyricStem.Substring($separator + 1)
+    if (
+      $normalizedSong -eq $normalizedTitle -or
+      $normalizedSong -eq ($normalizedTitle + $normalizedArtist) -or
+      $normalizedSong -eq ($normalizedArtist + $normalizedTitle)
+    ) {
+      $hasMatch = $true
+      break
+    }
+  }
+
+  if (-not $hasMatch) {
+    $problems.Add("歌曲没有对应歌词：$song")
+  }
 }
 foreach ($name in $lrcFiles) {
   if ($name -ne $name.Trim()) {
