@@ -2,6 +2,7 @@ const audio = document.querySelector("#daily-song");
 const title = document.querySelector("#music-title");
 const audioStatus = document.querySelector("#audio-status");
 const randomSongButton = document.querySelector("#random-song-button");
+const loopSongButton = document.querySelector("#loop-song-button");
 const songSearchInput = document.querySelector("#song-search-input");
 const songSearchResults = document.querySelector("#song-search-results");
 const songSearchStatus = document.querySelector("#song-search-status");
@@ -57,6 +58,12 @@ audio.addEventListener("volumechange", () => {
   } catch (error) {
     console.error("音量设置保存失败", error);
   }
+});
+
+loopSongButton.addEventListener("click", () => {
+  audio.loop = !audio.loop;
+  loopSongButton.setAttribute("aria-pressed", String(audio.loop));
+  loopSongButton.textContent = `单曲循环：${audio.loop ? "开" : "关"}`;
 });
 
 function normalizeTrackText(value) {
@@ -634,7 +641,7 @@ async function loadPlaylist() {
     });
     renderFavoriteList(songs);
     audio.addEventListener("ended", () => {
-      if (songs.length < 2) {
+      if (audio.loop || songs.length < 2) {
         return;
       }
 

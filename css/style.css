@@ -677,6 +677,7 @@ audio {
 
 /* 随机切歌按钮 */
 .random-song-button,
+.loop-song-button,
 .favorite-song-button,
 .favorites-toggle-button {
   padding: 9px 18px;
@@ -691,9 +692,11 @@ audio {
 }
 
 .random-song-button:hover:not(:disabled),
+.loop-song-button:hover:not(:disabled),
 .favorite-song-button:hover:not(:disabled),
 .favorites-toggle-button:hover:not(:disabled),
 .random-song-button:focus-visible,
+.loop-song-button:focus-visible,
 .favorite-song-button:focus-visible,
 .favorites-toggle-button:focus-visible {
   transform: translateY(-1px);
@@ -706,6 +709,7 @@ audio {
 }
 
 .random-song-button:disabled,
+.loop-song-button:disabled,
 .favorite-song-button:disabled,
 .favorites-toggle-button:disabled {
   opacity: 0.5;
