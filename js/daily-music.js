@@ -175,10 +175,6 @@ function findLyricFile(song) {
 
       const normalizedTitle = normalizeTrackText(metadata.title);
       const normalizedArtist = normalizeTrackText(metadata.artist);
-      if (!normalizedSong.includes(normalizedTitle)) {
-        return null;
-      }
-
       const exactTitle = normalizedSong === normalizedTitle;
       const exactArtistPair =
         normalizedSong === `${normalizedTitle}${normalizedArtist}` ||
