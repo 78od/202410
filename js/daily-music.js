@@ -488,6 +488,20 @@ function pauseLyricFollow() {
   }, 3000);
 }
 
+function scheduleLyricFollowResume(delay) {
+  lyricFollowPaused = true;
+  cancelLyricScrollAnimation();
+  window.clearTimeout(lyricFollowResumeTimeout);
+  lyricFollowResumeTimeout = window.setTimeout(() => {
+    lyricFollowResumeTimeout = 0;
+    if (audio.paused) {
+      return;
+    }
+    lyricFollowPaused = false;
+    updateLyricScroll(true);
+  }, delay);
+}
+
 function resumeLyricFollow() {
   window.clearTimeout(lyricFollowResumeTimeout);
   lyricFollowResumeTimeout = 0;
@@ -745,6 +759,10 @@ function showAudioBufferingStatus() {
 audio.addEventListener("waiting", showAudioBufferingStatus);
 audio.addEventListener("stalled", showAudioBufferingStatus);
 audio.addEventListener("pause", () => {
+  lyricFollowPaused = true;
+  cancelLyricScrollAnimation();
+  window.clearTimeout(lyricFollowResumeTimeout);
+  lyricFollowResumeTimeout = 0;
   if (audioStatus.textContent === "网络较慢，音频正在缓冲，请稍候…") {
     audioStatus.textContent = "";
   }
@@ -768,6 +786,7 @@ audio.addEventListener("keydown", (event) => {
 audio.addEventListener("play", () => {
   audio.preload = "auto";
   audio.fetchPriority = "high";
+  scheduleLyricFollowResume(1500);
 });
 
 songSearchInput.addEventListener("input", () => {
