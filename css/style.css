@@ -299,7 +299,7 @@ img {
   right: 3%;
   width: 12%;
   aspect-ratio: 1;
-  background: url("../music/mp/player-artwork.jpg") 33.333% 100% / 400% 300% no-repeat;
+  background: url("../music/mp/player-artwork.jpg?v=33ae63707a42") 33.333% 100% / 400% 300% no-repeat;
   border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
@@ -315,7 +315,7 @@ img {
   overflow: hidden;
   background:
     linear-gradient(rgba(8, 8, 8, 0.72), rgba(8, 8, 8, 0.82)),
-    url("../music/mp/player-artwork.jpg") 66.667% 100% / 400% 300% no-repeat;
+    url("../music/mp/player-artwork.jpg?v=33ae63707a42") 66.667% 100% / 400% 300% no-repeat;
   border-radius: inherit;
   pointer-events: none;
 }
@@ -325,7 +325,7 @@ img {
   display: block;
   height: auto;
   aspect-ratio: 1;
-  background-image: url("../music/mp/player-artwork.jpg");
+  background-image: url("../music/mp/player-artwork.jpg?v=33ae63707a42");
   background-size: 400% 300%;
   background-repeat: no-repeat;
   border: 2px solid rgba(255, 255, 255, 0.78);
@@ -406,6 +406,14 @@ img {
   width: 8%;
   background-position: 0% 100%;
   transform: rotate(-5deg);
+}
+
+.album-cover-carved {
+  bottom: 1%;
+  left: 50%;
+  width: 8%;
+  background-position: 100% 100%;
+  transform: translateX(-50%) rotate(-6deg);
 }
 
 .standalone-player .album-cover {
@@ -501,6 +509,16 @@ img {
   border-color: rgba(178, 235, 255, 0.95);
   box-shadow: 0 0 20px rgba(77, 195, 255, 0.42), 0 12px 28px rgba(0, 0, 0, 0.65);
   transform: rotate(8deg);
+}
+
+.standalone-player .album-cover-carved {
+  bottom: 2%;
+  left: 50%;
+  width: 18%;
+  opacity: 0.82;
+  border-color: rgba(166, 190, 239, 0.95);
+  box-shadow: 0 0 20px rgba(114, 139, 209, 0.42), 0 12px 28px rgba(0, 0, 0, 0.65);
+  transform: translateX(-50%) rotate(-6deg);
 }
 
 .music-title {
@@ -1248,6 +1266,10 @@ audio {
 
   .standalone-player .album-cover-freedom {
     width: 27%;
+  }
+
+  .standalone-player .album-cover-carved {
+    width: 23%;
   }
 }
 
