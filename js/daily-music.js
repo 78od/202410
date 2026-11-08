@@ -16,6 +16,7 @@ const favoritesToggleButton = document.querySelector("#favorites-toggle-button")
 const favoriteSongList = document.querySelector("#favorite-song-list");
 const favoriteSongStatus = document.querySelector("#favorite-song-status");
 const musicDirectory = new URL("../music/", document.currentScript.src);
+const audioAssetVersion = new URL(document.currentScript.src).searchParams.get("v");
 const favoritesStorageKey = "202410-music-favorites";
 const volumeStorageKey = "202410-music-volume";
 let currentSong;
@@ -35,11 +36,6 @@ let favoriteSongs = new Set();
 let favoritesAvailable = true;
 let playlistSongs = [];
 let searchInputFrame = 0;
-const audioStallTimeoutMs = 12000;
-const maxAudioRecoveryAttempts = 2;
-let audioStallTimeout = 0;
-let audioRecoveryAttempts = 0;
-let audioRecoveryVersion = 0;
 const lyricOverrides = new Map([
   ["当你.mp3", "当你-林俊杰-歌词.lrc"],
   ["刻在我心底的名字-卢广仲.mp3", "刻在我心底的名字-卢广仲-歌词.lrc"],
@@ -536,10 +532,6 @@ window.addEventListener("resize", () => {
 });
 
 function showSong(song) {
-  window.clearTimeout(audioStallTimeout);
-  audioStallTimeout = 0;
-  audioRecoveryAttempts = 0;
-  audioRecoveryVersion += 1;
   audioStatus.textContent = "";
   audioRetryButton.hidden = true;
   const isPlaying = !audio.paused;
@@ -547,7 +539,11 @@ function showSong(song) {
   title.textContent = song.replace(/\.[^.]+$/, "");
   void loadLyrics(song);
   updateFavoriteButton();
-  audio.src = new URL(encodeURIComponent(song), musicDirectory).href;
+  const songUrl = new URL(encodeURIComponent(song), musicDirectory);
+  if (audioAssetVersion) {
+    songUrl.searchParams.set("v", audioAssetVersion);
+  }
+  audio.src = songUrl.href;
   audio.load();
 
   if (isPlaying) {
@@ -731,8 +727,6 @@ async function loadLyricCatalog() {
 }
 
 audio.addEventListener("error", () => {
-  window.clearTimeout(audioStallTimeout);
-  audioStallTimeout = 0;
   audioStatus.textContent = "音频加载失败，请检查网络或音频文件路径";
   audioRetryButton.hidden = false;
   audioRetryButton.disabled = false;
@@ -742,72 +736,20 @@ audio.addEventListener("error", () => {
   });
 });
 
-function recoverStalledAudio() {
-  audioStallTimeout = 0;
-  if (audio.paused || audio.ended || !audio.currentSrc) {
-    return;
+function showAudioBufferingStatus() {
+  if (!audio.paused && !audio.ended) {
+    audioStatus.textContent = "网络较慢，音频正在缓冲，请稍候…";
   }
-  if (audioRecoveryAttempts >= maxAudioRecoveryAttempts) {
-    audioStatus.textContent = "网络仍不稳定，请重新播放或更换网络后重试";
-    console.warn("音频多次缓冲仍未恢复", {
-      source: audio.currentSrc,
-      currentTime: audio.currentTime,
-    });
-    return;
-  }
-
-  const source = audio.currentSrc;
-  const resumeTime = audio.currentTime;
-  const shouldResume = !audio.paused;
-  const recoveryVersion = ++audioRecoveryVersion;
-  audioRecoveryAttempts += 1;
-  audioStatus.textContent = `音频缓冲停滞，正在重连（${audioRecoveryAttempts}/${maxAudioRecoveryAttempts}）…`;
-
-  const resumePlayback = () => {
-    if (recoveryVersion !== audioRecoveryVersion || audio.currentSrc !== source) {
-      return;
-    }
-    if (Number.isFinite(audio.duration) && audio.duration > 0) {
-      audio.currentTime = Math.min(resumeTime, Math.max(0, audio.duration - 0.1));
-    }
-    if (shouldResume) {
-      audio.play().catch((error) => {
-        audioStatus.textContent = "音频已重新连接，请手动点击播放";
-        console.warn("音频重连后无法自动播放", error);
-      });
-    }
-  };
-
-  audio.addEventListener("loadedmetadata", resumePlayback, { once: true });
-  audio.load();
 }
 
-function scheduleAudioRecovery() {
-  if (audio.paused || audio.ended || !audio.currentSrc) {
-    return;
-  }
-  if (audioRecoveryAttempts >= maxAudioRecoveryAttempts) {
-    audioStatus.textContent = "网络仍不稳定，请重新播放或更换网络后重试";
-    return;
-  }
-
-  window.clearTimeout(audioStallTimeout);
-  audioStatus.textContent = "音频缓冲中…";
-  audioStallTimeout = window.setTimeout(recoverStalledAudio, audioStallTimeoutMs);
-}
-
-audio.addEventListener("waiting", scheduleAudioRecovery);
-audio.addEventListener("stalled", scheduleAudioRecovery);
+audio.addEventListener("waiting", showAudioBufferingStatus);
+audio.addEventListener("stalled", showAudioBufferingStatus);
 audio.addEventListener("pause", () => {
-  window.clearTimeout(audioStallTimeout);
-  audioStallTimeout = 0;
-  if (audioStatus.textContent === "音频缓冲中…") {
+  if (audioStatus.textContent === "网络较慢，音频正在缓冲，请稍候…") {
     audioStatus.textContent = "";
   }
 });
 audio.addEventListener("playing", () => {
-  window.clearTimeout(audioStallTimeout);
-  audioStallTimeout = 0;
   audioStatus.textContent = "";
   audioRetryButton.hidden = true;
 });
