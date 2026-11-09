@@ -1318,64 +1318,110 @@ audio {
   display: block;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.95))
-    drop-shadow(0 7px 10px rgba(0, 0, 0, 0.45));
-  transition: transform 0.22s ease, filter 0.22s ease;
   -webkit-user-drag: none;
 }
 
-.site-pet-button:hover img {
+/* 图片和眼睛遮罩作为整体做缩放/动作，避免眼珠和身体不同步 */
+.site-pet-visual {
+  position: relative;
+  display: block;
+  width: 100%;
+  filter: drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 7px 10px rgba(0, 0, 0, 0.45));
+  transform-origin: 50% 70%;
+  transition: transform 0.22s ease, filter 0.22s ease;
+}
+
+.site-pet-button:hover .site-pet-visual {
   transform: translateY(-2px) scale(1.03);
   filter: drop-shadow(0 0 1px rgba(255, 255, 255, 1))
     drop-shadow(0 9px 14px rgba(0, 0, 0, 0.5));
 }
 
-.site-pet.is-petting .site-pet-button img {
-  animation: site-pet-bounce 0.55s ease;
-}
-
-/* 点击或聚焦时显示的小气泡 */
-.site-pet-bubble {
+/* 白眼球遮住原图中的黑眼珠，再由 JS 移动黑眼珠 */
+.site-pet-eyes {
   position: absolute;
-  right: 2px;
-  bottom: calc(100% + 8px);
-  width: max-content;
-  max-width: min(190px, calc(100vw - 28px));
-  margin: 0;
-  padding: 8px 12px;
-  color: var(--text);
-  font-size: 0.78rem;
-  line-height: 1.45;
-  text-align: left;
-  background: linear-gradient(180deg, rgba(32, 32, 32, 0.98), rgba(12, 12, 12, 0.98));
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 14px 14px 4px 14px;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(5px) scale(0.97);
-  transform-origin: bottom right;
-  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+  inset: 0;
+  z-index: 2;
   pointer-events: none;
+  --pet-look-x: 0px;
+  --pet-look-y: 0px;
 }
 
-.site-pet-bubble::after {
+.site-pet-eye {
+  position: absolute;
+  top: 46.5%;
+  width: 7%;
+  height: 9.6%;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.site-pet-eye-left {
+  left: 33.1%;
+}
+
+.site-pet-eye-right {
+  left: 57.7%;
+}
+
+.site-pet-eye::after {
   content: "";
   position: absolute;
-  right: 16px;
-  bottom: -5px;
-  width: 9px;
-  height: 9px;
-  background: #0d0d0d;
-  border-right: 1px solid rgba(255, 255, 255, 0.16);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
-  transform: rotate(45deg);
+  top: 50%;
+  left: 50%;
+  width: 60%;
+  height: 60%;
+  background: #0c0b0a;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) translate(var(--pet-look-x), var(--pet-look-y));
 }
 
-.site-pet-bubble.is-visible {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0) scale(1);
+/* 拖动时暂停漂浮动画，光标改为抓取状态 */
+.site-pet.is-dragging {
+  z-index: 60;
+}
+
+.site-pet.is-dragging .site-pet-button {
+  cursor: grabbing;
+  animation: none;
+}
+
+.site-pet.is-dragging .site-pet-visual,
+.site-pet.is-dragging .site-pet-button:hover .site-pet-visual {
+  transform: none;
+  transition: none;
+}
+
+.site-pet-button {
+  cursor: grab;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 点击时的随机小动作 */
+.site-pet.is-action-jump .site-pet-visual {
+  animation: site-pet-action-jump 0.62s ease;
+}
+
+.site-pet.is-action-wiggle .site-pet-visual {
+  animation: site-pet-action-wiggle 0.6s ease;
+}
+
+.site-pet.is-action-spin .site-pet-visual {
+  animation: site-pet-action-spin 0.7s ease;
+}
+
+.site-pet.is-action-squash .site-pet-visual {
+  animation: site-pet-action-squash 0.55s ease;
+}
+
+.site-pet.is-action-shake .site-pet-visual {
+  animation: site-pet-action-shake 0.55s ease;
+}
+
+.site-pet.is-action-lean .site-pet-visual {
+  animation: site-pet-action-lean 0.62s ease;
 }
 
 @keyframes site-pet-float {
@@ -1389,18 +1435,116 @@ audio {
   }
 }
 
-@keyframes site-pet-bounce {
+@keyframes site-pet-action-jump {
   0%,
   100% {
     transform: translateY(0) scale(1);
   }
 
-  30% {
-    transform: translateY(-8px) scale(1.04);
+  32% {
+    transform: translateY(-16px) scale(1.04);
+  }
+
+  52% {
+    transform: translateY(0) scale(0.96);
+  }
+
+  70% {
+    transform: translateY(-5px) scale(1.02);
+  }
+}
+
+@keyframes site-pet-action-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+
+  20% {
+    transform: rotate(-8deg);
+  }
+
+  40% {
+    transform: rotate(7deg);
   }
 
   60% {
-    transform: translateY(1px) scale(0.99);
+    transform: rotate(-5deg);
+  }
+
+  80% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes site-pet-action-spin {
+  from {
+    transform: rotate(0);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes site-pet-action-squash {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  30% {
+    transform: scale(1.12, 0.87);
+  }
+
+  55% {
+    transform: scale(0.95, 1.05);
+  }
+
+  78% {
+    transform: scale(1.03, 0.98);
+  }
+}
+
+@keyframes site-pet-action-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-7px);
+  }
+
+  40% {
+    transform: translateX(7px);
+  }
+
+  60% {
+    transform: translateX(-5px);
+  }
+
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes site-pet-action-lean {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+
+  30% {
+    transform: rotate(-9deg);
+  }
+
+  60% {
+    transform: rotate(7deg);
+  }
+
+  82% {
+    transform: rotate(-2deg);
   }
 }
 
@@ -1410,26 +1554,19 @@ audio {
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     width: 76px;
   }
-
-  .site-pet-bubble {
-    max-width: 160px;
-    padding: 7px 10px;
-    font-size: 0.72rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .site-pet-button,
-  .site-pet.is-petting .site-pet-button img {
+  /* 只关闭持续漂浮；点击动作仍然响应。 */
+  .site-pet-button {
     animation: none;
   }
 
-  .site-pet-button img,
-  .site-pet-bubble {
+  .site-pet-visual {
     transition: none;
   }
 
-  .site-pet-button:hover img {
+  .site-pet-button:hover .site-pet-visual {
     transform: none;
   }
 }

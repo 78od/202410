@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="../css/style.css?v=site-pet-20261109" />
+    <link rel="stylesheet" href="../css/style.css?v=site-pet-eyes-20261109" />
     <link rel="preload" as="image" href="../music/mp/player-artwork.jpg?v=33ae63707a42" fetchpriority="high" />
     <title>音乐播放器</title>
   </head>
@@ -52,15 +52,20 @@
         <p class="music-tip">搜索歌名，或随机切换一首</p>
       </section>
 
-      <div class="site-pet" id="site-pet">
-        <p class="site-pet-bubble" id="site-pet-bubble" role="status" aria-live="polite"></p>
-        <button class="site-pet-button" id="site-pet-button" type="button" aria-label="和桌面小狗打招呼">
-          <img src="../Photos/pochacco-pet.png" alt="" width="707" height="759" decoding="async" />
+            <div class="site-pet" id="site-pet">
+        <button class="site-pet-button" id="site-pet-button" type="button" aria-label="拖动小狗，或点击让它做个动作">
+          <span class="site-pet-visual">
+            <img src="../Photos/pochacco-pet.png" alt="" width="707" height="759" draggable="false" decoding="async" />
+            <span class="site-pet-eyes" aria-hidden="true">
+              <span class="site-pet-eye site-pet-eye-left"></span>
+              <span class="site-pet-eye site-pet-eye-right"></span>
+            </span>
+          </span>
         </button>
       </div>
     </main>
     <script src="../js/daily-music.js?v=a1d5a034223d" defer></script>
     <script src="../js/image-viewer.js?v=44e61b25f920" defer></script>
-    <script src="../js/site-pet.js?v=site-pet-20261109" defer></script>
+    <script src="../js/site-pet.js?v=site-pet-eyes-20261109" defer></script>
   </body>
 </html>

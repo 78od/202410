@@ -50,12 +50,6 @@ public sealed class DesktopPuppy : Form
     private const int WM_NCHITTEST = 0x0084;
     private const int WS_EX_TOOLWINDOW = 0x00000080;
     private static readonly Color KeyColor = Color.FromArgb(1, 2, 3);
-    private static readonly string[] Replies =
-    {
-        "\u6c6a\uff01", "\u6765\u73a9\u5440\uff01", "\u6478\u6478\u5934\uff5e",
-        "\u6211\u5728\u8fd9\u91cc", "\u4eca\u5929\u4e5f\u5f88\u5f00\u5fc3\uff01"
-    };
-
     private static System.Threading.Mutex instanceMutex;
 
     private readonly Timer timer = new Timer();
@@ -73,8 +67,6 @@ public sealed class DesktopPuppy : Form
     private int blinkTicks;
     private int nextBlink;
     private float sizeScale = DefaultScale;
-    private int speechTicks;
-    private int speechIndex;
     private bool dragging;
     private bool dragged;
     private bool sunglassesEnabled;
@@ -542,7 +534,6 @@ public sealed class DesktopPuppy : Form
             blinkTicks = BlinkDurationTicks;
             nextBlink = random.Next(75, 170);
         }
-        if (speechTicks > 0) speechTicks--;
         Invalidate();
     }
 
@@ -566,8 +557,6 @@ public sealed class DesktopPuppy : Form
         g.TranslateTransform(GetSway(), 0);
         DrawCharacter(g);
         g.ResetTransform();
-
-        DrawBubbles(g);
     }
 
     private float GetBounce()
@@ -621,6 +610,7 @@ public sealed class DesktopPuppy : Form
 
         g.DrawImage(character, destination);
         g.Restore(drawingState);
+        DrawTrackedEyes(g, x, y, width, height);
 
         if (bowtieEnabled) DrawBowTie(g, x, y, width, height);
 
@@ -638,6 +628,63 @@ public sealed class DesktopPuppy : Form
         if (pose == Pose.Sparkle) DrawSparkles(g, x, y, width, height);
         if (!wearingSunglasses && (blinkTicks > 0 || pose == Pose.Sleep))
             DrawBlink(g, x, y, width, height, pose == Pose.Sleep);
+    }
+
+    private void DrawTrackedEyes(Graphics g, float x, float y, float width, float height)
+    {
+        Point cursor = PointToClient(Cursor.Position);
+        float logicalX = cursor.X / sizeScale;
+        float logicalY = cursor.Y / sizeScale;
+        if (direction > 0) logicalX = BaseWidth - logicalX;
+        logicalX -= GetSway();
+        logicalY += GetBounce() + GetIdleBob();
+
+        float sourceCursorX = (logicalX - x) / width * character.Width;
+        float sourceCursorY = (logicalY - y) / height * character.Height;
+        float centerX = (featureEyeLeftX + featureEyeRightX) / 2f;
+        float centerY = (featureEyeLeftY + featureEyeRightY) / 2f;
+        float lookX = sourceCursorX - centerX;
+        float lookY = sourceCursorY - centerY;
+        float length = (float)Math.Sqrt(lookX * lookX + lookY * lookY);
+        if (length > 0.001f)
+        {
+            lookX /= length;
+            lookY /= length;
+        }
+        else
+        {
+            lookX = 0;
+            lookY = 0;
+        }
+
+        float offsetX = lookX * character.Width * 0.008f;
+        float offsetY = lookY * character.Height * 0.005f;
+        float patchWidth = character.Width * 0.062f * (width / character.Width);
+        float patchHeight = character.Height * 0.084f * (height / character.Height);
+        float eyeWidth = character.Width * 0.038f * (width / character.Width);
+        float eyeHeight = character.Height * 0.054f * (height / character.Height);
+        float offsetDrawX = offsetX * (width / character.Width);
+        float offsetDrawY = offsetY * (height / character.Height);
+
+        using (var white = new SolidBrush(Color.White))
+        using (var eye = new SolidBrush(Color.FromArgb(12, 11, 10)))
+        {
+            float[] eyeXs = { x + featureEyeLeftX * (width / character.Width),
+                              x + featureEyeRightX * (width / character.Width) };
+            float[] eyeYs = { y + featureEyeLeftY * (height / character.Height),
+                              y + featureEyeRightY * (height / character.Height) };
+            for (int i = 0; i < eyeXs.Length; i++)
+            {
+                float eyeX = eyeXs[i];
+                float eyeY = eyeYs[i];
+                g.FillEllipse(white, eyeX - patchWidth / 2f, eyeY - patchHeight / 2f,
+                    patchWidth, patchHeight);
+                g.FillEllipse(eye,
+                    eyeX + offsetDrawX - eyeWidth / 2f,
+                    eyeY + offsetDrawY - eyeHeight / 2f,
+                    eyeWidth, eyeHeight);
+            }
+        }
     }
 
     private void DrawBlink(Graphics g, float x, float y, float width, float height, bool heldClosed)
@@ -1088,35 +1135,6 @@ public sealed class DesktopPuppy : Form
         g.FillPolygon(brush, tip);
     }
 
-    private void DrawBubbles(Graphics g)
-    {
-        GraphicsState bubbleState = g.Save();
-        g.ScaleTransform(sizeScale, sizeScale);
-        if (pose == Pose.Sleep)
-            DrawBubble(g, "Zzz", 198f, 24f);
-        else if (speechTicks > 0)
-            DrawBubble(g, Replies[speechIndex], 154f, 26f);
-        g.Restore(bubbleState);
-    }
-
-    private void DrawBubble(Graphics g, string text, float x, float y)
-    {
-        using (var fill = new SolidBrush(Color.White))
-        using (var edge = new Pen(Color.FromArgb(60, 55, 57), 2))
-        using (var font = new Font("Microsoft YaHei UI", 9.5f, FontStyle.Bold))
-        using (var textBrush = new SolidBrush(Color.FromArgb(55, 50, 54)))
-        {
-            SizeF size = g.MeasureString(text, font);
-            float bubbleWidth = size.Width + 18;
-            float bubbleHeight = size.Height + 10;
-            float bubbleX = Math.Max(4f, Math.Min(x, BaseWidth - bubbleWidth - 4f));
-            RectangleF bubble = new RectangleF(bubbleX, y, bubbleWidth, bubbleHeight);
-            g.FillEllipse(fill, bubble);
-            g.DrawEllipse(edge, bubble);
-            g.DrawString(text, font, textBrush, bubbleX + 9f, y + 5f);
-        }
-    }
-
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
@@ -1164,8 +1182,6 @@ public sealed class DesktopPuppy : Form
         }
         else
         {
-            speechIndex = random.Next(Replies.Length);
-            speechTicks = 90;
             PickTrick();
         }
     }
