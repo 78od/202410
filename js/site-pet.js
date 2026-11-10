@@ -68,6 +68,44 @@
     perchFrame = window.requestAnimationFrame(updatePerchedPosition);
   }
 
+  function placeOnMusicCard() {
+    const card = document.querySelector(".music-box");
+    if (!card || pet.offsetWidth === 0 || pet.offsetHeight === 0) return false;
+
+    const cardRect = card.getBoundingClientRect();
+    if (cardRect.width < 80 || cardRect.height < 80) return false;
+    if (cardRect.top < 0 || cardRect.top > window.innerHeight - 40) return false;
+
+    const width = pet.offsetWidth;
+    const left = Math.max(
+      edge,
+      Math.min(
+        window.innerWidth - width - edge,
+        cardRect.left + cardRect.width * 0.78 - width / 2
+      )
+    );
+
+    perchedCard = card;
+    perchOffsetX = left - cardRect.left;
+    updatePerchedPosition();
+    return true;
+  }
+
+  function initializeInitialPerch() {
+    if (perchedCard) return;
+    if (placeOnMusicCard()) return;
+
+    if (document.body.classList.contains("gated-page")) {
+      const observer = new MutationObserver(() => {
+        if (!document.body.classList.contains("gated-page")) {
+          observer.disconnect();
+          window.requestAnimationFrame(placeOnMusicCard);
+        }
+      });
+      observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    }
+  }
+
   function findSnapCard() {
     const petRect = pet.getBoundingClientRect();
     const centerX = petRect.left + petRect.width / 2;
@@ -250,4 +288,21 @@
   window.addEventListener("pointermove", trackPointer, { passive: true });
   window.addEventListener("scroll", schedulePerchUpdate, { passive: true });
   window.addEventListener("resize", schedulePerchUpdate);
+
+  function initializeWhenReady() {
+    const image = pet.querySelector("img");
+    if (image && !image.complete) {
+      image.addEventListener("load", () => {
+        window.requestAnimationFrame(initializeInitialPerch);
+      }, { once: true });
+      return;
+    }
+    window.requestAnimationFrame(initializeInitialPerch);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeWhenReady, { once: true });
+  } else {
+    initializeWhenReady();
+  }
 })();
