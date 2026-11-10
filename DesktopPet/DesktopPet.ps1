@@ -3,6 +3,29 @@ Add-Type -AssemblyName System.Drawing
 
 $ErrorActionPreference = 'Stop'
 
+# Windows 默认把 PowerShell 当成 DPI 不感知的程序：在 125% / 150% 缩放下，
+# 系统会把整个宠物窗口拉伸放大，描边和眼睛因此发虚、颜色变灰。
+# 在创建任何窗口之前声明 Per-Monitor V2，让它按物理像素绘制。
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class DesktopPuppyDpi
+{
+    [DllImport("user32.dll")] private static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+    [DllImport("shcore.dll")] private static extern int SetProcessDpiAwareness(int value);
+    [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
+
+    public static void Enable()
+    {
+        try { if (SetProcessDpiAwarenessContext(new IntPtr(-4))) return; } catch { }
+        try { if (SetProcessDpiAwareness(2) == 0) return; } catch { }
+        try { SetProcessDPIAware(); } catch { }
+    }
+}
+'@
+try { [DesktopPuppyDpi]::Enable() } catch { }
+
 $imagePath = Join-Path $PSScriptRoot 'DesktopPuppy-final.png'
 if (-not (Test-Path -LiteralPath $imagePath)) {
     $imagePath = Join-Path $PSScriptRoot 'DesktopPuppy.png'
@@ -46,8 +69,12 @@ public sealed class DesktopPuppy : Form
     private const int BaseHeight = 300;
     private const float DefaultScale = 0.6f;
     private const int BlinkDurationTicks = 12;
+    private const int GlowRadius = 2;
+    private const int GlowPadding = 10;
     private const int WM_NCHITTEST = 0x0084;
     private const int WS_EX_TOOLWINDOW = 0x00000080;
+    private const int WS_EX_LAYERED = 0x00080000;
+    private const int ULW_ALPHA = 0x00000002;
     private static readonly Color KeyColor = Color.FromArgb(1, 2, 3);
     private static System.Threading.Mutex instanceMutex;
 
@@ -65,7 +92,9 @@ public sealed class DesktopPuppy : Form
     private int actionTicks;
     private int blinkTicks;
     private int nextBlink;
+    private float userScale = DefaultScale;
     private float sizeScale = DefaultScale;
+    private readonly float dpiScale = 1f;
     private bool dragging;
     private bool dragged;
     private bool poseHeld;
@@ -76,11 +105,32 @@ public sealed class DesktopPuppy : Form
     private Point mouseOrigin;
     private Point formOrigin;
 
+    // 逐像素 Alpha 分层窗口：整帧先画到内存位图，再交给 UpdateLayeredWindow，
+    // 这样白边和柔光才是真正的半透明，不会被颜色键弄成灰边。
+    private Bitmap frameBitmap;
+    private Bitmap glowBitmap;
+    private Bitmap spriteCharacter;
+    private Bitmap spriteGlow;
+    private float spriteScale = -1f;
+    private byte[] framePixels;
+    private IntPtr memoryDc = IntPtr.Zero;
+    private IntPtr dibSection = IntPtr.Zero;
+    private IntPtr originalDib = IntPtr.Zero;
+    private IntPtr dibBits = IntPtr.Zero;
+    private int surfaceWidth;
+    private int surfaceHeight;
+
     public DesktopPuppy()
     {
         bool created;
         instanceMutex = new System.Threading.Mutex(true, "Local\\DesktopPuppyOriginalDog", out created);
         ownsMutex = created;
+
+        // 进程已声明 DPI 感知，这里取系统 DPI（96 / 120 / 144 ...），
+        // 让宠物在 125%、150% 缩放下仍保持同样的物理大小。
+        using (Graphics screen = Graphics.FromHwnd(IntPtr.Zero))
+            dpiScale = screen.DpiX / 96f;
+        if (dpiScale < 0.9f || dpiScale > 4f) dpiScale = 1f;
 
         string imagePath = Environment.GetEnvironmentVariable("DESKTOP_PUPPY_IMAGE");
         if (String.IsNullOrEmpty(imagePath) || !File.Exists(imagePath))
@@ -89,6 +139,7 @@ public sealed class DesktopPuppy : Form
             character = new Bitmap(loaded);
         SanitizeKeyColor(character);
         ConfigureFeatures();
+        glowBitmap = BuildGlow(character, GlowRadius, GlowPadding, 0.92f);
 
         settingsPath = Environment.GetEnvironmentVariable("DESKTOP_PUPPY_SETTINGS");
         if (String.IsNullOrEmpty(settingsPath))
@@ -108,7 +159,6 @@ public sealed class DesktopPuppy : Form
         AutoScaleMode = AutoScaleMode.None;
         Cursor = Cursors.Hand;
         BackColor = KeyColor;
-        TransparencyKey = KeyColor;
         ClientSize = new Size(BaseWidth, BaseHeight);
         SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                  ControlStyles.OptimizedDoubleBuffer, true);
@@ -135,8 +185,8 @@ public sealed class DesktopPuppy : Form
         menu.Items.Add(actionMenu);
 
         var sizeMenu = new ToolStripMenuItem("\u8c03\u6574\u5927\u5c0f");
-        sizeMenu.DropDownItems.Add("\u7f29\u5c0f 10%", null, delegate { SetSize(sizeScale - 0.1f); });
-        sizeMenu.DropDownItems.Add("\u653e\u5927 10%", null, delegate { SetSize(sizeScale + 0.1f); });
+        sizeMenu.DropDownItems.Add("\u7f29\u5c0f 10%", null, delegate { SetSize(userScale - 0.1f); });
+        sizeMenu.DropDownItems.Add("\u653e\u5927 10%", null, delegate { SetSize(userScale + 0.1f); });
         sizeMenu.DropDownItems.Add(new ToolStripSeparator());
         sizeMenu.DropDownItems.Add("\u6062\u590d\u9ed8\u8ba4\uff0860%\uff09", null, delegate { SetSize(DefaultScale); });
         menu.Items.Add(sizeMenu);
@@ -176,7 +226,7 @@ public sealed class DesktopPuppy : Form
         get
         {
             CreateParams cp = base.CreateParams;
-            cp.ExStyle |= WS_EX_TOOLWINDOW;
+            cp.ExStyle |= WS_EX_TOOLWINDOW | WS_EX_LAYERED;
             return cp;
         }
     }
@@ -185,11 +235,70 @@ public sealed class DesktopPuppy : Form
     private static extern bool SetWindowPos(
         IntPtr hWnd, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeSize
+    {
+        public int Width;
+        public int Height;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    private struct BlendFunction
+    {
+        public byte BlendOp;
+        public byte BlendFlags;
+        public byte SourceConstantAlpha;
+        public byte AlphaFormat;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BitmapInfoHeader
+    {
+        public uint Size;
+        public int Width;
+        public int Height;
+        public ushort Planes;
+        public ushort BitCount;
+        public uint Compression;
+        public uint SizeImage;
+        public int XPelsPerMeter;
+        public int YPelsPerMeter;
+        public uint ClrUsed;
+        public uint ClrImportant;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BitmapInfo
+    {
+        public BitmapInfoHeader Header;
+        public uint Colors;
+    }
+
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDc);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateCompatibleDC(IntPtr hDc);
+    [DllImport("gdi32.dll")] private static extern bool DeleteDC(IntPtr hDc);
+    [DllImport("gdi32.dll")] private static extern IntPtr SelectObject(IntPtr hDc, IntPtr obj);
+    [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr obj);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateDIBSection(
+        IntPtr hDc, ref BitmapInfo info, uint usage, out IntPtr bits, IntPtr section, uint offset);
+    [DllImport("user32.dll")] private static extern bool UpdateLayeredWindow(
+        IntPtr hWnd, IntPtr destDc, ref NativePoint destPoint, ref NativeSize size,
+        IntPtr srcDc, ref NativePoint srcPoint, int colorKey, ref BlendFunction blend, int flags);
+
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
         if (!ownsMutex) return;
         SetWindowPos(Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0040);
+        RenderFrame();
     }
 
     protected override void WndProc(ref Message m)
@@ -252,6 +361,7 @@ public sealed class DesktopPuppy : Form
     private void LoadSettings()
     {
         bool hasPosition = false;
+        bool dpiAwareSettings = false;
         int savedX = 0;
         int savedY = 0;
 
@@ -287,6 +397,9 @@ public sealed class DesktopPuppy : Form
                     savedX = x;
                     savedY = y;
                 }
+
+                string marker;
+                dpiAwareSettings = values.TryGetValue("dpiAware", out marker) && marker == "1";
             }
         }
         catch
@@ -296,6 +409,14 @@ public sealed class DesktopPuppy : Form
 
         if (hasPosition)
         {
+            // 旧版本以“虚拟像素”保存坐标（系统会替它放大 125%），
+            // 现在按物理像素定位，需要把旧坐标换算一次。
+            if (!dpiAwareSettings)
+            {
+                savedX = (int)Math.Round(savedX * dpiScale);
+                savedY = (int)Math.Round(savedY * dpiScale);
+            }
+
             Rectangle work = Screen.FromPoint(
                 new Point(savedX + Width / 2, savedY + Height / 2)).WorkingArea;
             int x = Math.Min(Math.Max(savedX, work.Left), Math.Max(work.Left, work.Right - Width));
@@ -322,7 +443,8 @@ public sealed class DesktopPuppy : Form
                 "# DesktopPuppy settings",
                 "x=" + Left.ToString(CultureInfo.InvariantCulture),
                 "y=" + Top.ToString(CultureInfo.InvariantCulture),
-                "scale=" + sizeScale.ToString("0.###", CultureInfo.InvariantCulture)
+                "scale=" + userScale.ToString("0.###", CultureInfo.InvariantCulture),
+                "dpiAware=1"
             };
             File.WriteAllLines(settingsPath, lines, Encoding.UTF8);
         }
@@ -342,7 +464,8 @@ public sealed class DesktopPuppy : Form
 
     private void ApplyScale(float scale)
     {
-        sizeScale = Math.Max(0.4f, Math.Min(1.6f, scale));
+        userScale = Math.Max(0.4f, Math.Min(1.6f, scale));
+        sizeScale = userScale * dpiScale;
         ClientSize = new Size(
             (int)Math.Round(BaseWidth * sizeScale),
             (int)Math.Round(BaseHeight * sizeScale));
@@ -358,7 +481,7 @@ public sealed class DesktopPuppy : Form
         int y = Math.Max(work.Top, Math.Min(work.Bottom - Height, bottom - Height));
         Location = new Point(x, y);
         SaveSettings();
-        Invalidate();
+        RenderFrame();
     }
 
     private void SetPose(Pose next, int duration)
@@ -372,7 +495,7 @@ public sealed class DesktopPuppy : Form
             walkTarget = 0;
             subpixelX = Left;
         }
-        Invalidate();
+        RenderFrame();
     }
 
     // Sit / nap picked from the menu stay until the next menu pick or click,
@@ -468,29 +591,309 @@ public sealed class DesktopPuppy : Form
             blinkTicks = BlinkDurationTicks;
             nextBlink = random.Next(75, 170);
         }
-        Invalidate();
+        RenderFrame();
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
-        base.OnPaint(e);
-        Graphics g = e.Graphics;
-        g.Clear(KeyColor);
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        g.CompositingQuality = CompositingQuality.HighQuality;
-        g.ScaleTransform(sizeScale, sizeScale);
+        // 画面由 RenderFrame 推送到分层窗口，普通 WM_PAINT 不再绘制。
+    }
 
-        g.TranslateTransform(0, -GetBounce() - GetIdleBob());
-        if (direction > 0)
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+    }
+
+    private void RenderFrame()
+    {
+        if (!IsHandleCreated) return;
+        int width = ClientSize.Width;
+        int height = ClientSize.Height;
+        if (width <= 0 || height <= 0) return;
+
+        EnsureFrame(width, height);
+        EnsureSprites();
+
+        using (Graphics g = Graphics.FromImage(frameBitmap))
         {
-            g.TranslateTransform(BaseWidth, 0);
-            g.ScaleTransform(-1, 1);
+            g.Clear(Color.Transparent);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.CompositingQuality = CompositingQuality.HighQuality;
+            g.ScaleTransform(sizeScale, sizeScale);
+
+            g.TranslateTransform(0, -GetBounce() - GetIdleBob());
+            if (direction > 0)
+            {
+                g.TranslateTransform(BaseWidth, 0);
+                g.ScaleTransform(-1, 1);
+            }
+            g.TranslateTransform(GetSway(), 0);
+            DrawCharacter(g);
         }
-        g.TranslateTransform(GetSway(), 0);
-        DrawCharacter(g);
-        g.ResetTransform();
+
+        PresentFrame(width, height);
+    }
+
+    private void EnsureFrame(int width, int height)
+    {
+        if (frameBitmap == null || frameBitmap.Width != width || frameBitmap.Height != height)
+        {
+            if (frameBitmap != null) frameBitmap.Dispose();
+            frameBitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+            framePixels = new byte[width * height * 4];
+        }
+        EnsureSurface(width, height);
+    }
+
+    // 把素材预先缩放到实际显示尺寸，避免每帧都对 700px 的图做双三次采样。
+    private void EnsureSprites()
+    {
+        if (spriteCharacter != null && Math.Abs(spriteScale - sizeScale) < 0.0005f) return;
+
+        if (spriteCharacter != null) spriteCharacter.Dispose();
+        if (spriteGlow != null) spriteGlow.Dispose();
+        spriteCharacter = null;
+        spriteGlow = null;
+
+        float width = 242f * sizeScale;
+        int pixelWidth = Math.Max(1, (int)Math.Round(width));
+        int pixelHeight = Math.Max(1, (int)Math.Round(width * character.Height / character.Width));
+        spriteCharacter = ResizeHighQuality(character, pixelWidth, pixelHeight);
+
+        if (glowBitmap != null)
+        {
+            float pad = GlowPadding * (width / character.Width);
+            int glowWidth = Math.Max(1, (int)Math.Round((width + pad * 2f)));
+            int glowHeight = Math.Max(1, (int)Math.Round(
+                (width * character.Height / character.Width + pad * 2f)));
+            spriteGlow = ResizeHighQuality(glowBitmap, glowWidth, glowHeight);
+        }
+
+        spriteScale = sizeScale;
+    }
+
+    private static Bitmap ResizeHighQuality(Bitmap source, int width, int height)
+    {
+        var result = new Bitmap(width, height, PixelFormat.Format32bppPArgb);
+        using (Graphics g = Graphics.FromImage(result))
+        {
+            g.Clear(Color.Transparent);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.CompositingQuality = CompositingQuality.HighQuality;
+            g.DrawImage(source, new Rectangle(0, 0, width, height));
+        }
+        return result;
+    }
+
+    private void EnsureSurface(int width, int height)
+    {
+        if (memoryDc != IntPtr.Zero && surfaceWidth == width && surfaceHeight == height) return;
+        ReleaseSurface();
+
+        IntPtr screenDc = GetDC(IntPtr.Zero);
+        memoryDc = CreateCompatibleDC(screenDc);
+        var info = new BitmapInfo();
+        info.Header.Size = (uint)Marshal.SizeOf(typeof(BitmapInfoHeader));
+        info.Header.Width = width;
+        info.Header.Height = -height;
+        info.Header.Planes = 1;
+        info.Header.BitCount = 32;
+        info.Header.Compression = 0;
+        dibSection = CreateDIBSection(screenDc, ref info, 0, out dibBits, IntPtr.Zero, 0);
+        originalDib = SelectObject(memoryDc, dibSection);
+        surfaceWidth = width;
+        surfaceHeight = height;
+        ReleaseDC(IntPtr.Zero, screenDc);
+    }
+
+    private void ReleaseSurface()
+    {
+        if (memoryDc == IntPtr.Zero) return;
+        if (originalDib != IntPtr.Zero) SelectObject(memoryDc, originalDib);
+        if (dibSection != IntPtr.Zero) DeleteObject(dibSection);
+        DeleteDC(memoryDc);
+        memoryDc = IntPtr.Zero;
+        dibSection = IntPtr.Zero;
+        originalDib = IntPtr.Zero;
+        dibBits = IntPtr.Zero;
+        surfaceWidth = 0;
+        surfaceHeight = 0;
+    }
+
+    private void PresentFrame(int width, int height)
+    {
+        if (memoryDc == IntPtr.Zero || dibBits == IntPtr.Zero) return;
+
+        BitmapData data = frameBitmap.LockBits(
+            new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        try
+        {
+            int stride = data.Stride;
+            if (stride == width * 4)
+            {
+                Marshal.Copy(data.Scan0, framePixels, 0, framePixels.Length);
+            }
+            else
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    Marshal.Copy(data.Scan0 + y * stride, framePixels, y * width * 4, width * 4);
+                }
+            }
+        }
+        finally
+        {
+            frameBitmap.UnlockBits(data);
+        }
+
+        // UpdateLayeredWindow 使用预乘 Alpha。
+        for (int i = 0; i < framePixels.Length; i += 4)
+        {
+            int alpha = framePixels[i + 3];
+            if (alpha == 255) continue;
+            if (alpha == 0)
+            {
+                framePixels[i] = 0;
+                framePixels[i + 1] = 0;
+                framePixels[i + 2] = 0;
+                continue;
+            }
+            framePixels[i] = (byte)(framePixels[i] * alpha / 255);
+            framePixels[i + 1] = (byte)(framePixels[i + 1] * alpha / 255);
+            framePixels[i + 2] = (byte)(framePixels[i + 2] * alpha / 255);
+        }
+
+        Marshal.Copy(framePixels, 0, dibBits, framePixels.Length);
+
+        IntPtr screenDc = GetDC(IntPtr.Zero);
+        var destination = new NativePoint { X = Left, Y = Top };
+        var size = new NativeSize { Width = width, Height = height };
+        var source = new NativePoint { X = 0, Y = 0 };
+        var blend = new BlendFunction
+        {
+            BlendOp = 0,
+            BlendFlags = 0,
+            SourceConstantAlpha = 255,
+            AlphaFormat = 1
+        };
+        UpdateLayeredWindow(Handle, screenDc, ref destination, ref size, memoryDc,
+            ref source, 0, ref blend, ULW_ALPHA);
+        ReleaseDC(IntPtr.Zero, screenDc);
+    }
+
+    // 用角色图的 Alpha 做轮廓，模糊后铺成白色柔光，效果等同网页的
+    // filter: drop-shadow(0 0 0.6px rgba(255,255,255,.95))。
+    private static Bitmap BuildGlow(Bitmap source, int radius, int padding, float strength)
+    {
+        int width = source.Width + padding * 2;
+        int height = source.Height + padding * 2;
+        byte[] mask = new byte[width * height];
+
+        BitmapData data = source.LockBits(
+            new Rectangle(0, 0, source.Width, source.Height),
+            ImageLockMode.ReadOnly,
+            PixelFormat.Format32bppArgb);
+        try
+        {
+            int stride = data.Stride;
+            byte[] row = new byte[stride];
+            for (int y = 0; y < source.Height; y++)
+            {
+                Marshal.Copy(data.Scan0 + y * stride, row, 0, stride);
+                int target = (y + padding) * width + padding;
+                for (int x = 0; x < source.Width; x++)
+                {
+                    mask[target + x] = row[x * 4 + 3];
+                }
+            }
+        }
+        finally
+        {
+            source.UnlockBits(data);
+        }
+
+        for (int pass = 0; pass < 3; pass++)
+        {
+            mask = BoxBlur(mask, width, height, radius);
+        }
+
+        Bitmap glow = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+        BitmapData glowData = glow.LockBits(
+            new Rectangle(0, 0, width, height),
+            ImageLockMode.WriteOnly,
+            PixelFormat.Format32bppArgb);
+        try
+        {
+            int stride = glowData.Stride;
+            byte[] row = new byte[stride];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    int alpha = (int)(mask[y * width + x] * strength);
+                    if (alpha > 255) alpha = 255;
+                    int offset = x * 4;
+                    row[offset] = 255;
+                    row[offset + 1] = 255;
+                    row[offset + 2] = 255;
+                    row[offset + 3] = (byte)alpha;
+                }
+                Marshal.Copy(row, 0, glowData.Scan0 + y * stride, stride);
+            }
+        }
+        finally
+        {
+            glow.UnlockBits(glowData);
+        }
+
+        return glow;
+    }
+
+    private static byte[] BoxBlur(byte[] source, int width, int height, int radius)
+    {
+        byte[] horizontal = new byte[source.Length];
+        byte[] result = new byte[source.Length];
+        int window = radius * 2 + 1;
+
+        for (int y = 0; y < height; y++)
+        {
+            int row = y * width;
+            int sum = 0;
+            for (int offset = -radius; offset <= radius; offset++)
+            {
+                int x = Math.Max(0, Math.Min(width - 1, offset));
+                sum += source[row + x];
+            }
+            for (int x = 0; x < width; x++)
+            {
+                horizontal[row + x] = (byte)(sum / window);
+                int add = Math.Min(width - 1, x + radius + 1);
+                int remove = Math.Max(0, x - radius);
+                sum += source[row + add] - source[row + remove];
+            }
+        }
+
+        for (int x = 0; x < width; x++)
+        {
+            int sum = 0;
+            for (int offset = -radius; offset <= radius; offset++)
+            {
+                int y = Math.Max(0, Math.Min(height - 1, offset));
+                sum += horizontal[y * width + x];
+            }
+            for (int y = 0; y < height; y++)
+            {
+                result[y * width + x] = (byte)(sum / window);
+                int add = Math.Min(height - 1, y + radius + 1);
+                int remove = Math.Max(0, y - radius);
+                sum += horizontal[add * width + x] - horizontal[remove * width + x];
+            }
+        }
+
+        return result;
     }
 
     private float GetBounce()
@@ -533,7 +936,14 @@ public sealed class DesktopPuppy : Form
             g.TranslateTransform(-140, -(y + height));
         }
 
-        g.DrawImage(character, destination);
+        if (spriteGlow != null)
+        {
+            float pad = GlowPadding * (width / character.Width);
+            g.DrawImage(spriteGlow, new RectangleF(
+                x - pad, y - pad, width + pad * 2f, height + pad * 2f));
+        }
+
+        g.DrawImage(spriteCharacter != null ? spriteCharacter : character, destination);
         g.Restore(drawingState);
         DrawTrackedEyes(g, x, y, width, height);
 
@@ -576,12 +986,15 @@ public sealed class DesktopPuppy : Form
             lookY = 0;
         }
 
-        float offsetX = lookX * character.Width * 0.008f;
-        float offsetY = lookY * character.Height * 0.005f;
-        float patchWidth = character.Width * 0.062f * (width / character.Width);
-        float patchHeight = character.Height * 0.084f * (height / character.Height);
-        float eyeWidth = character.Width * 0.038f * (width / character.Width);
-        float eyeHeight = character.Height * 0.054f * (height / character.Height);
+        // 与网页版桌宠同一套比例：眼白 7% × 9.6%，瞳孔为眼白的 60%。
+        // 旧版瞳孔只有 3.8% × 5.4%，几乎和原图眼睛一样大，边缘糊边会露出来，
+        // 看起来就比网页版小一号、发灰。
+        float offsetX = lookX * character.Width * 0.015f;
+        float offsetY = lookY * character.Width * 0.015f;
+        float patchWidth = width * 0.070f;
+        float patchHeight = height * 0.096f;
+        float eyeWidth = width * 0.042f;
+        float eyeHeight = height * 0.0576f;
         float offsetDrawX = offsetX * (width / character.Width);
         float offsetDrawY = offsetY * (height / character.Height);
 
@@ -614,8 +1027,8 @@ public sealed class DesktopPuppy : Form
 
         float scaleX = width / character.Width;
         float scaleY = height / character.Height;
-        float patchWidth = character.Width * 0.065f * scaleX;
-        float patchHeight = character.Height * 0.088f * scaleY;
+        float patchWidth = width * 0.070f;
+        float patchHeight = height * 0.096f;
         float lidHalf = character.Width * 0.024f * scaleX;
         float lidDrop = character.Height * 0.017f * scaleY;
         using (var white = new SolidBrush(Color.White))
@@ -645,8 +1058,8 @@ public sealed class DesktopPuppy : Form
                 }
                 else
                 {
-                    float eyeHeight = character.Height * 0.060f * scaleY * openness;
-                    float eyeWidth = character.Width * 0.042f * scaleX;
+                    float eyeHeight = height * 0.0576f * openness;
+                    float eyeWidth = width * 0.042f;
                     g.FillEllipse(eye, eyeX - eyeWidth / 2f, eyeY - eyeHeight / 2f,
                         eyeWidth, eyeHeight);
                 }
@@ -969,6 +1382,11 @@ public sealed class DesktopPuppy : Form
         timer.Stop();
         timer.Dispose();
         if (ownsMutex) SaveSettings();
+        ReleaseSurface();
+        if (glowBitmap != null) glowBitmap.Dispose();
+        if (spriteGlow != null) spriteGlow.Dispose();
+        if (spriteCharacter != null) spriteCharacter.Dispose();
+        if (frameBitmap != null) frameBitmap.Dispose();
         character.Dispose();
         if (ownsMutex)
         {
