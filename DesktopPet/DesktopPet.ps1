@@ -39,8 +39,7 @@ public sealed class DesktopPuppy : Form
 {
     private enum Pose
     {
-        Sit, Walk, Sleep, Play, Sniff, Shades, Flower, Wave, Stretch,
-        Drink, Rose, Dance, Sparkle
+        Sit, Walk, Sleep, Sniff, Shades, Flower, Wave, Stretch, Rose, Dance
     }
 
     private const int BaseWidth = 280;
@@ -69,14 +68,11 @@ public sealed class DesktopPuppy : Form
     private float sizeScale = DefaultScale;
     private bool dragging;
     private bool dragged;
-    private bool sunglassesEnabled;
-    private bool bowtieEnabled;
+    private bool poseHeld;
     private float featureEyeLeftX;
     private float featureEyeRightX;
     private float featureEyeLeftY;
     private float featureEyeRightY;
-    private float featureNoseX;
-    private float featureNoseY;
     private Point mouseOrigin;
     private Point formOrigin;
 
@@ -124,30 +120,19 @@ public sealed class DesktopPuppy : Form
 
         var menu = new ContextMenuStrip();
         menu.ShowImageMargin = false;
-        menu.Items.Add("\u968f\u673a\u6563\u6b65", null, delegate { BeginWalk(); });
-        menu.Items.Add("\u5750\u4e0b\u966a\u4f60", null, delegate { SetPose(Pose.Sit, 1200); });
-        menu.Items.Add("\u6253\u4e2a\u76f9", null, delegate { SetPose(Pose.Sleep, random.Next(220, 360)); });
-        menu.Items.Add("\u8868\u6f14\u4e00\u4e2a", null, delegate { PickTrick(); });
+        menu.Items.Add("\u5750\u4e0b\u966a\u4f60", null, delegate { HoldPose(Pose.Sit); });
+        menu.Items.Add("\u6253\u4e2a\u76f9", null, delegate { HoldPose(Pose.Sleep); });
 
         var actionMenu = new ToolStripMenuItem("\u66f4\u591a\u52a8\u4f5c");
-        actionMenu.DropDownItems.Add("\u559d\u676f\u5976\u8336", null, delegate
-        {
-            SetPose(Pose.Drink, DurationFor(Pose.Drink));
-        });
-        actionMenu.DropDownItems.Add("\u9001\u6735\u5c0f\u82b1", null, delegate
-        {
-            SetPose(Pose.Rose, DurationFor(Pose.Rose));
-        });
-        actionMenu.DropDownItems.Add("\u8df3\u4e2a\u821e", null, delegate
-        {
-            SetPose(Pose.Dance, DurationFor(Pose.Dance));
-        });
-        actionMenu.DropDownItems.Add("\u95ea\u4eae\u767b\u573a", null, delegate
-        {
-            SetPose(Pose.Sparkle, DurationFor(Pose.Sparkle));
-        });
+        actionMenu.DropDownItems.Add("\u968f\u673a\u6563\u6b65", null, delegate { BeginWalk(); });
+        actionMenu.DropDownItems.Add("\u55c5\u4e00\u55c5", null, delegate { StartTrick(Pose.Sniff); });
+        actionMenu.DropDownItems.Add("\u6234\u58a8\u955c", null, delegate { StartTrick(Pose.Shades); });
+        actionMenu.DropDownItems.Add("\u53fc\u5c0f\u82b1", null, delegate { StartTrick(Pose.Flower); });
+        actionMenu.DropDownItems.Add("\u6325\u722a", null, delegate { StartTrick(Pose.Wave); });
+        actionMenu.DropDownItems.Add("\u4f38\u61d2\u8170", null, delegate { StartTrick(Pose.Stretch); });
+        actionMenu.DropDownItems.Add("\u9001\u6735\u5c0f\u82b1", null, delegate { StartTrick(Pose.Rose); });
+        actionMenu.DropDownItems.Add("\u8df3\u4e2a\u821e", null, delegate { StartTrick(Pose.Dance); });
         menu.Items.Add(actionMenu);
-        menu.Items.Add("\u968f\u673a\u53ef\u7231\u52a8\u4f5c", null, delegate { PickAction(); });
 
         var sizeMenu = new ToolStripMenuItem("\u8c03\u6574\u5927\u5c0f");
         sizeMenu.DropDownItems.Add("\u7f29\u5c0f 10%", null, delegate { SetSize(sizeScale - 0.1f); });
@@ -156,33 +141,8 @@ public sealed class DesktopPuppy : Form
         sizeMenu.DropDownItems.Add("\u6062\u590d\u9ed8\u8ba4\uff0860%\uff09", null, delegate { SetSize(DefaultScale); });
         menu.Items.Add(sizeMenu);
 
-        var sunglassesItem = new ToolStripMenuItem(
-            sunglassesEnabled ? "\u6458\u4e0b\u58a8\u955c" : "\u6234\u4e0a\u58a8\u955c");
-        sunglassesItem.Click += delegate
-        {
-            sunglassesEnabled = !sunglassesEnabled;
-            sunglassesItem.Text = sunglassesEnabled ?
-                "\u6458\u4e0b\u58a8\u955c" : "\u6234\u4e0a\u58a8\u955c";
-            SaveSettings();
-            Invalidate();
-        };
-        menu.Items.Add(sunglassesItem);
-
-        var bowtieItem = new ToolStripMenuItem(
-            bowtieEnabled ? "\u6458\u4e0b\u9886\u7ed3" : "\u6234\u4e0a\u9886\u7ed3");
-        bowtieItem.Click += delegate
-        {
-            bowtieEnabled = !bowtieEnabled;
-            bowtieItem.Text = bowtieEnabled ? "\u6458\u4e0b\u9886\u7ed3" : "\u6234\u4e0a\u9886\u7ed3";
-            SaveSettings();
-            Invalidate();
-        };
-        menu.Items.Add(bowtieItem);
-
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("\u56de\u5230\u53f3\u4e0b\u89d2", null, delegate { ResetPosition(); });
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("\u9000\u51fa\u684c\u9762\u5c0f\u72d7", null, delegate { Close(); });
+        menu.Items.Add("\u9000\u51fa", null, delegate { Close(); });
         ContextMenuStrip = menu;
 
         if (!ownsMutex)
@@ -204,8 +164,6 @@ public sealed class DesktopPuppy : Form
         featureEyeRightX = character.Width * 0.6122f;
         featureEyeLeftY = character.Height * 0.5155f;
         featureEyeRightY = character.Height * 0.5108f;
-        featureNoseX = character.Width * 0.4891f;
-        featureNoseY = character.Height * 0.5540f;
     }
 
     protected override bool ShowWithoutActivation
@@ -274,12 +232,7 @@ public sealed class DesktopPuppy : Form
         float y = BaseHeight - height - 4f;
 
         // Undo the small extra transforms used by the playful poses.
-        if (pose == Pose.Play)
-        {
-            float angle = -(float)Math.Sin(phase * 1.2f) * 1.4f;
-            RotatePoint(ref logicalX, ref logicalY, 140f, y + height / 2f, angle);
-        }
-        else if (pose == Pose.Stretch)
+        if (pose == Pose.Stretch)
         {
             float bottom = y + height;
             logicalX = 140f + (logicalX - 140f) / 1.015f;
@@ -294,15 +247,6 @@ public sealed class DesktopPuppy : Form
         sourceX = Math.Max(0, Math.Min(character.Width - 1, sourceX));
         sourceY = Math.Max(0, Math.Min(character.Height - 1, sourceY));
         return character.GetPixel(sourceX, sourceY).A >= 20;
-    }
-
-    private static void RotatePoint(ref float x, ref float y, float cx, float cy, float degrees)
-    {
-        double radians = degrees * Math.PI / 180.0;
-        float dx = x - cx;
-        float dy = y - cy;
-        x = cx + (float)(dx * Math.Cos(radians) - dy * Math.Sin(radians));
-        y = cy + (float)(dx * Math.Sin(radians) + dy * Math.Cos(radians));
     }
 
     private void LoadSettings()
@@ -331,11 +275,6 @@ public sealed class DesktopPuppy : Form
                 {
                     ApplyScale(savedScale);
                 }
-
-                if (values.TryGetValue("sunglasses", out value) && value == "1")
-                    sunglassesEnabled = true;
-                if (values.TryGetValue("bowtie", out value) && value == "1")
-                    bowtieEnabled = true;
 
                 int x;
                 int y;
@@ -383,9 +322,7 @@ public sealed class DesktopPuppy : Form
                 "# DesktopPuppy settings",
                 "x=" + Left.ToString(CultureInfo.InvariantCulture),
                 "y=" + Top.ToString(CultureInfo.InvariantCulture),
-                "scale=" + sizeScale.ToString("0.###", CultureInfo.InvariantCulture),
-                "sunglasses=" + (sunglassesEnabled ? "1" : "0"),
-                "bowtie=" + (bowtieEnabled ? "1" : "0")
+                "scale=" + sizeScale.ToString("0.###", CultureInfo.InvariantCulture)
             };
             File.WriteAllLines(settingsPath, lines, Encoding.UTF8);
         }
@@ -401,13 +338,6 @@ public sealed class DesktopPuppy : Form
         int x = work.Right - Width - 24;
         int y = work.Bottom - Height - 8;
         Location = new Point(Math.Max(work.Left, x), Math.Max(work.Top, y));
-    }
-
-    private void ResetPosition()
-    {
-        SetDefaultLocation();
-        SaveSettings();
-        Invalidate();
     }
 
     private void ApplyScale(float scale)
@@ -436,12 +366,21 @@ public sealed class DesktopPuppy : Form
         pose = next;
         phase = 0;
         actionTicks = duration;
+        poseHeld = false;
         if (next != Pose.Walk)
         {
             walkTarget = 0;
             subpixelX = Left;
         }
         Invalidate();
+    }
+
+    // Sit / nap picked from the menu stay until the next menu pick or click,
+    // unlike the short poses the pet picks for itself.
+    private void HoldPose(Pose next)
+    {
+        SetPose(next, 0);
+        poseHeld = true;
     }
 
     private void BeginWalk()
@@ -456,33 +395,28 @@ public sealed class DesktopPuppy : Form
         SetPose(Pose.Walk, 1);
     }
 
+    private static readonly Pose[] TrickPoses =
+    {
+        Pose.Sniff, Pose.Shades, Pose.Flower, Pose.Wave,
+        Pose.Stretch, Pose.Rose, Pose.Dance
+    };
+
+    private void StartTrick(Pose trick)
+    {
+        SetPose(trick, DurationFor(trick));
+    }
+
     private void PickTrick()
     {
-        Pose[] tricks =
-        {
-            Pose.Play, Pose.Sniff, Pose.Shades, Pose.Flower, Pose.Wave,
-            Pose.Stretch, Pose.Drink, Pose.Rose, Pose.Dance, Pose.Sparkle
-        };
-        Pose pick = tricks[random.Next(tricks.Length)];
+        Pose pick = TrickPoses[random.Next(TrickPoses.Length)];
         SetPose(pick, DurationFor(pick));
     }
 
     private int DurationFor(Pose action)
     {
-        if (action == Pose.Drink) return random.Next(260, 360);
         if (action == Pose.Rose) return random.Next(230, 320);
         if (action == Pose.Dance) return random.Next(250, 340);
-        if (action == Pose.Sparkle) return random.Next(220, 300);
         return random.Next(95, 155);
-    }
-
-    private void PickAction()
-    {
-        int choice = random.Next(8);
-        if (choice == 0) BeginWalk();
-        else if (choice == 1) SetPose(Pose.Sleep, random.Next(220, 360));
-        else if (choice == 2) SetPose(Pose.Sit, random.Next(130, 230));
-        else PickTrick();
     }
 
     private void Animate(object sender, EventArgs e)
@@ -513,7 +447,7 @@ public sealed class DesktopPuppy : Form
             }
             if (walkTarget <= 0) SetPose(Pose.Sit, random.Next(360, 680));
         }
-        else if (--actionTicks <= 0)
+        else if (!poseHeld && --actionTicks <= 0)
         {
             if (pose != Pose.Sit)
             {
@@ -562,13 +496,10 @@ public sealed class DesktopPuppy : Form
     private float GetBounce()
     {
         if (pose == Pose.Walk) return (float)Math.Abs(Math.Sin(phase * 2)) * 2;
-        if (pose == Pose.Play) return (float)Math.Abs(Math.Sin(phase * 1.65f)) * 8;
         if (pose == Pose.Sleep) return (float)Math.Sin(phase) * 1.2f;
         if (pose == Pose.Stretch) return (float)Math.Sin(phase) * 2;
-        if (pose == Pose.Drink) return (float)Math.Abs(Math.Sin(phase * 1.2f)) * 1.2f;
         if (pose == Pose.Rose) return (float)Math.Sin(phase * 1.1f) * 1.2f;
         if (pose == Pose.Dance) return (float)Math.Abs(Math.Sin(phase * 2.2f)) * 4;
-        if (pose == Pose.Sparkle) return (float)Math.Abs(Math.Sin(phase * 1.8f)) * 3;
         return 0;
     }
 
@@ -595,13 +526,7 @@ public sealed class DesktopPuppy : Form
         RectangleF destination = new RectangleF(x, y, width, height);
 
         GraphicsState drawingState = g.Save();
-        if (pose == Pose.Play)
-        {
-            g.TranslateTransform(140, y + height / 2f);
-            g.RotateTransform((float)Math.Sin(phase * 1.2f) * 1.4f);
-            g.TranslateTransform(-140, -(y + height / 2f));
-        }
-        else if (pose == Pose.Stretch)
+        if (pose == Pose.Stretch)
         {
             g.TranslateTransform(140, y + height);
             g.ScaleTransform(1.015f, 0.985f);
@@ -612,20 +537,14 @@ public sealed class DesktopPuppy : Form
         g.Restore(drawingState);
         DrawTrackedEyes(g, x, y, width, height);
 
-        if (bowtieEnabled) DrawBowTie(g, x, y, width, height);
-
-        bool wearingSunglasses =
-            sunglassesEnabled || pose == Pose.Shades || pose == Pose.Sparkle;
+        bool wearingSunglasses = pose == Pose.Shades;
         if (wearingSunglasses) DrawSunglasses(g, x, y, width, height);
         if (pose == Pose.Flower) DrawFlower(g, x, y, width, height);
-        if (pose == Pose.Play) DrawBall(g);
         if (pose == Pose.Sniff) DrawSniffMarks(g, x, y, width, height);
         if (pose == Pose.Stretch) DrawStretchMarks(g);
         if (pose == Pose.Wave) DrawWaveMarks(g);
-        if (pose == Pose.Drink) DrawDrink(g, x, y, width, height);
         if (pose == Pose.Rose) DrawRose(g, x, y, width, height);
         if (pose == Pose.Dance) DrawDanceNotes(g, x, y, width, height);
-        if (pose == Pose.Sparkle) DrawSparkles(g, x, y, width, height);
         if (!wearingSunglasses && (blinkTicks > 0 || pose == Pose.Sleep))
             DrawBlink(g, x, y, width, height, pose == Pose.Sleep);
     }
@@ -856,17 +775,6 @@ public sealed class DesktopPuppy : Form
         }
     }
 
-    private void DrawBall(Graphics g)
-    {
-        float hop = (float)Math.Abs(Math.Sin(phase * 1.65f)) * 14;
-        using (var fill = new SolidBrush(Color.FromArgb(248, 200, 69)))
-        using (var edge = new Pen(Color.FromArgb(35, 33, 30), 2))
-        {
-            g.FillEllipse(fill, 28, 236 - hop, 17, 17);
-            g.DrawEllipse(edge, 28, 236 - hop, 17, 17);
-        }
-    }
-
     private void DrawSniffMarks(Graphics g, float x, float y, float width, float height)
     {
         float sx = width / character.Width;
@@ -904,105 +812,6 @@ public sealed class DesktopPuppy : Form
         g.TranslateTransform(x, y);
         g.ScaleTransform(width / character.Width, height / character.Height);
         return state;
-    }
-
-    private void DrawBowTie(Graphics g, float x, float y, float width, float height)
-    {
-        GraphicsState state = BeginCharacterSpace(g, x, y, width, height);
-        float cx = featureNoseX;
-        float cy = character.Height * 0.695f;
-        float wing = character.Width * 0.090f;
-        float halfH = character.Height * 0.037f;
-
-        PointF[] leftWing =
-        {
-            new PointF(cx - 6, cy),
-            new PointF(cx - wing, cy - halfH),
-            new PointF(cx - wing, cy + halfH)
-        };
-        PointF[] rightWing =
-        {
-            new PointF(cx + 6, cy),
-            new PointF(cx + wing, cy - halfH),
-            new PointF(cx + wing, cy + halfH)
-        };
-
-        using (var fill = new SolidBrush(Color.FromArgb(79, 187, 174)))
-        using (var edge = new Pen(Color.FromArgb(31, 102, 98), 3f))
-        using (var knot = new SolidBrush(Color.FromArgb(53, 150, 141)))
-        using (var dot = new SolidBrush(Color.FromArgb(246, 250, 245)))
-        {
-            g.FillPolygon(fill, leftWing);
-            g.FillPolygon(fill, rightWing);
-            g.DrawPolygon(edge, leftWing);
-            g.DrawPolygon(edge, rightWing);
-            g.FillEllipse(knot, cx - 13, cy - 17, 26, 34);
-            g.DrawEllipse(edge, cx - 13, cy - 17, 26, 34);
-
-            g.FillEllipse(dot, cx - wing * 0.62f, cy - halfH * 0.30f, 6, 6);
-            g.FillEllipse(dot, cx - wing * 0.45f, cy + halfH * 0.30f, 5, 5);
-            g.FillEllipse(dot, cx + wing * 0.45f, cy - halfH * 0.42f, 5, 5);
-            g.FillEllipse(dot, cx + wing * 0.62f, cy + halfH * 0.18f, 6, 6);
-        }
-        g.Restore(state);
-    }
-
-    private void DrawDrink(Graphics g, float x, float y, float width, float height)
-    {
-        GraphicsState state = BeginCharacterSpace(g, x, y, width, height);
-        float lift = (float)((Math.Sin(phase * 1.6f) + 1.0) * 0.5) * 11f;
-        float cupWidth = character.Width * 0.095f;
-        float cupHeight = character.Height * 0.115f;
-        float cx = character.Width * 0.655f;
-        float top = character.Height * 0.615f - lift;
-        float bottom = top + cupHeight;
-
-        using (var straw = new Pen(Color.FromArgb(52, 48, 44), 8f))
-        using (var strawShine = new Pen(Color.FromArgb(150, 238, 238, 236), 2f))
-        using (var tea = new SolidBrush(Color.FromArgb(226, 190, 152)))
-        using (var lid = new SolidBrush(Color.FromArgb(85, 186, 176)))
-        using (var outline = new Pen(Color.FromArgb(74, 58, 49), 4f))
-        using (var boba = new SolidBrush(Color.FromArgb(66, 44, 38)))
-        using (var paw = new SolidBrush(Color.FromArgb(208, 144, 103)))
-        using (var heart = new SolidBrush(Color.FromArgb(224, 91, 115)))
-        {
-            straw.StartCap = LineCap.Round;
-            straw.EndCap = LineCap.Round;
-            strawShine.StartCap = LineCap.Round;
-            strawShine.EndCap = LineCap.Round;
-            g.DrawLine(straw, cx + cupWidth * 0.10f, top + 16,
-                cx + cupWidth * 0.58f, top - 42);
-            g.DrawLine(strawShine, cx + cupWidth * 0.14f, top + 13,
-                cx + cupWidth * 0.57f, top - 38);
-
-            PointF[] cup =
-            {
-                new PointF(cx - cupWidth / 2f, top + 10),
-                new PointF(cx + cupWidth / 2f, top + 10),
-                new PointF(cx + cupWidth * 0.36f, bottom),
-                new PointF(cx - cupWidth * 0.36f, bottom)
-            };
-            g.FillPolygon(tea, cup);
-            g.DrawPolygon(outline, cup);
-
-            g.FillRectangle(lid, cx - cupWidth / 2f - 3, top, cupWidth + 6, 13);
-            g.DrawRectangle(outline, cx - cupWidth / 2f - 3, top, cupWidth + 6, 13);
-            g.FillEllipse(lid, cx - cupWidth * 0.30f, top - 7, cupWidth * 0.60f, 14);
-
-            g.FillEllipse(boba, cx - cupWidth * 0.24f, bottom - 22, 9, 9);
-            g.FillEllipse(boba, cx + cupWidth * 0.02f, bottom - 16, 9, 9);
-            g.FillEllipse(boba, cx + cupWidth * 0.24f, bottom - 25, 8, 8);
-            g.FillEllipse(boba, cx - cupWidth * 0.05f, bottom - 31, 7, 7);
-
-            g.FillEllipse(paw, cx + cupWidth * 0.22f, bottom - 26,
-                cupWidth * 0.48f, cupHeight * 0.28f);
-            g.DrawEllipse(outline, cx + cupWidth * 0.22f, bottom - 26,
-                cupWidth * 0.48f, cupHeight * 0.28f);
-
-            float heartY = top - 50 + (float)Math.Sin(phase * 2.0f) * 5f;
-            DrawHeart(g, heart, cx + cupWidth * 0.60f, heartY, 20f);
-        }
-        g.Restore(state);
     }
 
     private void DrawRose(Graphics g, float x, float y, float width, float height)
@@ -1070,38 +879,6 @@ public sealed class DesktopPuppy : Form
                 character.Height * 0.22f + bob, 13f);
             DrawStar(g, pink, character.Width * 0.88f,
                 character.Height * 0.15f - bob * 0.5f, 10f);
-        }
-        g.Restore(state);
-    }
-
-    private void DrawSparkles(Graphics g, float x, float y, float width, float height)
-    {
-        GraphicsState state = BeginCharacterSpace(g, x, y, width, height);
-        float[] xs = { 0.10f, 0.90f, 0.13f, 0.87f, 0.27f, 0.72f, 0.50f };
-        float[] ys = { 0.30f, 0.24f, 0.56f, 0.53f, 0.13f, 0.10f, 0.07f };
-        Color[] colors =
-        {
-            Color.FromArgb(255, 247, 210, 85),
-            Color.FromArgb(255, 247, 210, 85),
-            Color.FromArgb(255, 238, 129, 163),
-            Color.FromArgb(255, 117, 212, 233),
-            Color.FromArgb(255, 255, 255, 255),
-            Color.FromArgb(255, 196, 148, 238),
-            Color.FromArgb(255, 247, 210, 85)
-        };
-        for (int i = 0; i < xs.Length; i++)
-        {
-            float twinkle = (float)Math.Abs(Math.Sin(phase * 2.1f + i * 1.13f));
-            float size = 7f + twinkle * 11f;
-            int alpha = 110 + (int)(twinkle * 145f);
-            using (var brush = new SolidBrush(Color.FromArgb(alpha,
-                colors[i].R, colors[i].G, colors[i].B)))
-            {
-                DrawStar(g, brush,
-                    character.Width * xs[i],
-                    character.Height * ys[i] + (float)Math.Sin(phase + i) * 5f,
-                    size);
-            }
         }
         g.Restore(state);
     }
@@ -1182,6 +959,7 @@ public sealed class DesktopPuppy : Form
         }
         else
         {
+            // A plain click on the dog plays a random action.
             PickTrick();
         }
     }
