@@ -17,6 +17,7 @@ const favoriteSongList = document.querySelector("#favorite-song-list");
 const favoriteSongStatus = document.querySelector("#favorite-song-status");
 const musicDirectory = new URL("../music/", document.currentScript.src);
 const audioAssetVersion = new URL(document.currentScript.src).searchParams.get("v");
+const isStandalonePlayer = document.body.classList.contains("player-page");
 const favoritesStorageKey = "202410-music-favorites";
 const volumeStorageKey = "202410-music-volume";
 let currentSong;
@@ -40,6 +41,13 @@ const lyricOverrides = new Map([
   ["当你.mp3", "当你-林俊杰-歌词.lrc"],
   ["刻在我心底的名字-卢广仲.mp3", "刻在我心底的名字-卢广仲-歌词.lrc"],
 ]);
+
+function setSongTitle(songTitle) {
+  title.textContent = songTitle;
+  if (isStandalonePlayer) {
+    document.title = songTitle;
+  }
+}
 
 try {
   const storedVolume = localStorage.getItem(volumeStorageKey);
@@ -328,7 +336,7 @@ async function loadLyrics(song) {
       return;
     }
 
-    title.textContent = `${match.metadata.title} - ${match.metadata.artist}`;
+    setSongTitle(`${match.metadata.title} - ${match.metadata.artist}`);
     if (entries.length === 0) {
       lyricsStatus.textContent = "暂无对应歌词";
       return;
@@ -550,7 +558,7 @@ function showSong(song) {
   audioRetryButton.hidden = true;
   const isPlaying = !audio.paused;
   currentSong = song;
-  title.textContent = song.replace(/\.[^.]+$/, "");
+  setSongTitle(song.replace(/\.[^.]+$/, ""));
   void loadLyrics(song);
   updateFavoriteButton();
   const songUrl = new URL(encodeURIComponent(song), musicDirectory);
