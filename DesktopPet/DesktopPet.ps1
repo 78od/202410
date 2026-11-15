@@ -62,12 +62,14 @@ public sealed class DesktopPuppy : Form
 {
     private enum Pose
     {
-        Sit, Walk, Sleep, Sniff, Shades, Flower, Wave, Stretch, Rose, Dance
+        Sit, Walk, Sleep, Sniff, Shades, Wave, Stretch, Rose, Dance
     }
 
     private const int BaseWidth = 280;
     private const int BaseHeight = 300;
     private const float DefaultScale = 0.6f;
+    private const int MinPercent = 40;
+    private const int MaxPercent = 160;
     private const int BlinkDurationTicks = 12;
     private const int GlowRadius = 2;
     private const int GlowPadding = 10;
@@ -98,6 +100,7 @@ public sealed class DesktopPuppy : Form
     private bool dragging;
     private bool dragged;
     private bool poseHeld;
+    private bool wearingFlower;
     private float featureEyeLeftX;
     private float featureEyeRightX;
     private float featureEyeLeftY;
@@ -112,6 +115,8 @@ public sealed class DesktopPuppy : Form
     private Bitmap spriteCharacter;
     private Bitmap spriteGlow;
     private float spriteScale = -1f;
+    private bool spriteReuse;
+    private bool fastPreview;
     private byte[] framePixels;
     private IntPtr memoryDc = IntPtr.Zero;
     private IntPtr dibSection = IntPtr.Zero;
@@ -177,7 +182,17 @@ public sealed class DesktopPuppy : Form
         actionMenu.DropDownItems.Add("\u968f\u673a\u6563\u6b65", null, delegate { BeginWalk(); });
         actionMenu.DropDownItems.Add("\u55c5\u4e00\u55c5", null, delegate { StartTrick(Pose.Sniff); });
         actionMenu.DropDownItems.Add("\u6234\u58a8\u955c", null, delegate { StartTrick(Pose.Shades); });
-        actionMenu.DropDownItems.Add("\u53fc\u5c0f\u82b1", null, delegate { StartTrick(Pose.Flower); });
+        // 设成勾选项：勾上就一直戴着，再点一次摘掉，状态会写入设置、重启后保持。
+        var flowerItem = new ToolStripMenuItem("\u6234\u9ec4\u82b1\uff08\u5e38\u9a7b\uff09");
+        flowerItem.CheckOnClick = true;
+        flowerItem.Checked = wearingFlower;
+        flowerItem.CheckedChanged += delegate
+        {
+            wearingFlower = flowerItem.Checked;
+            SaveSettings();
+            RenderFrame();
+        };
+        actionMenu.DropDownItems.Add(flowerItem);
         actionMenu.DropDownItems.Add("\u6325\u722a", null, delegate { StartTrick(Pose.Wave); });
         actionMenu.DropDownItems.Add("\u4f38\u61d2\u8170", null, delegate { StartTrick(Pose.Stretch); });
         actionMenu.DropDownItems.Add("\u9001\u6735\u5c0f\u82b1", null, delegate { StartTrick(Pose.Rose); });
@@ -185,10 +200,23 @@ public sealed class DesktopPuppy : Form
         menu.Items.Add(actionMenu);
 
         var sizeMenu = new ToolStripMenuItem("\u8c03\u6574\u5927\u5c0f");
+        var currentSizeItem = new ToolStripMenuItem("\u5f53\u524d\uff1a" + CurrentPercent() + "%");
+        currentSizeItem.Enabled = false;
+        sizeMenu.DropDownItems.Add(currentSizeItem);
+        sizeMenu.DropDownItems.Add(new ToolStripSeparator());
         sizeMenu.DropDownItems.Add("\u7f29\u5c0f 10%", null, delegate { SetSize(userScale - 0.1f); });
         sizeMenu.DropDownItems.Add("\u653e\u5927 10%", null, delegate { SetSize(userScale + 0.1f); });
+        // 延迟到菜单收起后再弹窗，否则对话框会被还开着的右键菜单挡住。
+        sizeMenu.DropDownItems.Add("\u81ea\u5b9a\u4e49\u5927\u5c0f\u2026", null, delegate
+        {
+            BeginInvoke((MethodInvoker)delegate { PromptCustomScale(); });
+        });
         sizeMenu.DropDownItems.Add(new ToolStripSeparator());
         sizeMenu.DropDownItems.Add("\u6062\u590d\u9ed8\u8ba4\uff0860%\uff09", null, delegate { SetSize(DefaultScale); });
+        sizeMenu.DropDownOpening += delegate
+        {
+            currentSizeItem.Text = "\u5f53\u524d\uff1a" + CurrentPercent() + "%";
+        };
         menu.Items.Add(sizeMenu);
 
         menu.Items.Add(new ToolStripSeparator());
@@ -386,6 +414,10 @@ public sealed class DesktopPuppy : Form
                     ApplyScale(savedScale);
                 }
 
+                string flowerValue;
+                if (values.TryGetValue("flower", out flowerValue))
+                    wearingFlower = flowerValue == "1";
+
                 int x;
                 int y;
                 if (values.TryGetValue("x", out value) &&
@@ -444,6 +476,7 @@ public sealed class DesktopPuppy : Form
                 "x=" + Left.ToString(CultureInfo.InvariantCulture),
                 "y=" + Top.ToString(CultureInfo.InvariantCulture),
                 "scale=" + userScale.ToString("0.###", CultureInfo.InvariantCulture),
+                "flower=" + (wearingFlower ? "1" : "0"),
                 "dpiAware=1"
             };
             File.WriteAllLines(settingsPath, lines, Encoding.UTF8);
@@ -462,6 +495,64 @@ public sealed class DesktopPuppy : Form
         Location = new Point(Math.Max(work.Left, x), Math.Max(work.Top, y));
     }
 
+    private int CurrentPercent()
+    {
+        return (int)Math.Round(userScale * 100f);
+    }
+
+    private void PromptCustomScale()
+    {
+        float originalScale = userScale;
+        Rectangle originalBounds = Bounds;
+
+        using (var dialog = new ScaleDialog(dpiScale, CurrentPercent()))
+        {
+            // 右键菜单在宠物旁边弹出，对话框放到当前屏幕中间，避免贴着屏幕边缘。
+            Rectangle work = Screen.FromControl(this).WorkingArea;
+            dialog.StartPosition = FormStartPosition.Manual;
+            dialog.Location = new Point(
+                work.Left + (work.Width - dialog.Width) / 2,
+                work.Top + (work.Height - dialog.Height) / 2);
+
+            // 拖动滑动条时实时预览大小，点取消则整体恢复。
+            dialog.PercentChanged += delegate(int percent) { PreviewScale(percent, originalBounds); };
+
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                SetSizeFromPercent(dialog.Percent);
+            }
+            else
+            {
+                fastPreview = false;
+                ApplyScale(originalScale);
+                Bounds = originalBounds;
+                RenderFrame();
+            }
+        }
+    }
+
+    private void SetSizeFromPercent(int percent)
+    {
+        if (percent < MinPercent) percent = MinPercent;
+        if (percent > MaxPercent) percent = MaxPercent;
+        SetSize(percent / 100f);
+    }
+
+    // 预览只改窗口大小和位置，不写入设置，方便取消时还原。
+    private void PreviewScale(int percent, Rectangle anchor)
+    {
+        if (percent < MinPercent) percent = MinPercent;
+        if (percent > MaxPercent) percent = MaxPercent;
+        fastPreview = true;
+        ApplyScale(percent / 100f);
+
+        Rectangle work = Screen.FromRectangle(anchor).WorkingArea;
+        int x = Math.Max(work.Left, Math.Min(work.Right - Width, anchor.Right - Width));
+        int y = Math.Max(work.Top, Math.Min(work.Bottom - Height, anchor.Bottom - Height));
+        Location = new Point(x, y);
+        RenderFrame();
+    }
+
     private void ApplyScale(float scale)
     {
         userScale = Math.Max(0.4f, Math.Min(1.6f, scale));
@@ -476,6 +567,7 @@ public sealed class DesktopPuppy : Form
         Rectangle work = Screen.FromControl(this).WorkingArea;
         int right = Right;
         int bottom = Bottom;
+        fastPreview = false;
         ApplyScale(scale);
         int x = Math.Max(work.Left, Math.Min(work.Right - Width, right - Width));
         int y = Math.Max(work.Top, Math.Min(work.Bottom - Height, bottom - Height));
@@ -520,7 +612,7 @@ public sealed class DesktopPuppy : Form
 
     private static readonly Pose[] TrickPoses =
     {
-        Pose.Sniff, Pose.Shades, Pose.Flower, Pose.Wave,
+        Pose.Sniff, Pose.Shades, Pose.Wave,
         Pose.Stretch, Pose.Rose, Pose.Dance
     };
 
@@ -617,9 +709,9 @@ public sealed class DesktopPuppy : Form
         {
             g.Clear(Color.Transparent);
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            g.CompositingQuality = CompositingQuality.HighQuality;
+            g.PixelOffsetMode = fastPreview ? PixelOffsetMode.Half : PixelOffsetMode.HighQuality;
+            g.InterpolationMode = fastPreview ? InterpolationMode.Bilinear : InterpolationMode.HighQualityBicubic;
+            g.CompositingQuality = fastPreview ? CompositingQuality.HighSpeed : CompositingQuality.HighQuality;
             g.ScaleTransform(sizeScale, sizeScale);
 
             g.TranslateTransform(0, -GetBounce() - GetIdleBob());
@@ -649,7 +741,15 @@ public sealed class DesktopPuppy : Form
     // 把素材预先缩放到实际显示尺寸，避免每帧都对 700px 的图做双三次采样。
     private void EnsureSprites()
     {
-        if (spriteCharacter != null && Math.Abs(spriteScale - sizeScale) < 0.0005f) return;
+        // 拖动滑条时复用上一张高清贴图，由绘制时再缩放：重采样一次要 100ms 以上，
+        // 边拖边重采样会卡住界面。松手后 SetSize 会按新尺寸重新生成高清贴图。
+        if (fastPreview && spriteCharacter != null)
+        {
+            spriteReuse = true;
+            return;
+        }
+
+        if (spriteCharacter != null && !spriteReuse && Math.Abs(spriteScale - sizeScale) < 0.0005f) return;
 
         if (spriteCharacter != null) spriteCharacter.Dispose();
         if (spriteGlow != null) spriteGlow.Dispose();
@@ -670,6 +770,7 @@ public sealed class DesktopPuppy : Form
             spriteGlow = ResizeHighQuality(glowBitmap, glowWidth, glowHeight);
         }
 
+        spriteReuse = false;
         spriteScale = sizeScale;
     }
 
@@ -909,7 +1010,7 @@ public sealed class DesktopPuppy : Form
     private float GetIdleBob()
     {
         if (pose == Pose.Sit || pose == Pose.Sniff || pose == Pose.Shades ||
-            pose == Pose.Flower || pose == Pose.Wave)
+            pose == Pose.Wave)
             return (float)Math.Sin(phase * 1.25f) * 0.8f;
         return 0;
     }
@@ -949,7 +1050,7 @@ public sealed class DesktopPuppy : Form
 
         bool wearingSunglasses = pose == Pose.Shades;
         if (wearingSunglasses) DrawSunglasses(g, x, y, width, height);
-        if (pose == Pose.Flower) DrawFlower(g, x, y, width, height);
+        if (wearingFlower) DrawFlower(g, x, y, width, height);
         if (pose == Pose.Sniff) DrawSniffMarks(g, x, y, width, height);
         if (pose == Pose.Stretch) DrawStretchMarks(g);
         if (pose == Pose.Wave) DrawWaveMarks(g);
@@ -1422,6 +1523,180 @@ public sealed class DesktopPuppy : Form
         finally
         {
             bitmap.UnlockBits(data);
+        }
+    }
+
+    // 拖动滑动条或直接输入整数百分比。尺寸按 dpiScale 手动放大，
+    // 避免系统把对话框整体拉伸后文字发虚。
+    private sealed class ScaleDialog : Form
+    {
+        public readonly NumericUpDown Box;
+        public readonly TrackBar Slider;
+        public event Action<int> PercentChanged;
+        private readonly Timer previewTimer = new Timer();
+        private bool syncing;
+        private int pendingPercent;
+        private int previewedPercent = Int32.MinValue;
+
+        public ScaleDialog(float dpiScale, int initialPercent)
+        {
+            float dpi = Math.Max(1f, dpiScale);
+            Func<float, int> px = delegate(float value) { return (int)Math.Round(value * dpi); };
+            int percent = Math.Max(MinPercent, Math.Min(MaxPercent, initialPercent));
+
+            Text = "\u8c03\u6574\u5927\u5c0f";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            StartPosition = FormStartPosition.Manual;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowInTaskbar = false;
+            ShowIcon = false;
+            TopMost = true;
+            AutoScaleMode = AutoScaleMode.None;
+
+            Font baseFont = SystemFonts.MessageBoxFont;
+            if (baseFont == null) baseFont = SystemFonts.DefaultFont;
+            Font = new Font(baseFont.FontFamily, baseFont.SizeInPoints * dpi, baseFont.Style);
+
+            int clientWidth = px(340f);
+            int clientHeight = px(196f);
+
+            var label = new Label();
+            label.AutoSize = true;
+            label.Text = "\u8f93\u5165\u5ba0\u7269\u5927\u5c0f\u7684\u6574\u6570\u767e\u5206\u6bd4\uff1a";
+            label.Location = new Point(px(16f), px(14f));
+
+            Box = new NumericUpDown();
+            Box.Minimum = MinPercent;
+            Box.Maximum = MaxPercent;
+            Box.DecimalPlaces = 0;
+            Box.Increment = 5;
+            Box.ThousandsSeparator = false;
+            Box.Value = percent;
+            Box.TextAlign = HorizontalAlignment.Left;
+            Box.Width = px(110f);
+            Box.Location = new Point(px(16f), px(44f));
+
+            var percentLabel = new Label();
+            percentLabel.AutoSize = true;
+            percentLabel.Text = "%\uff08" + MinPercent + "\u2013" + MaxPercent + "\uff09";
+            percentLabel.Location = new Point(px(132f), px(48f));
+
+            Slider = new TrackBar();
+            Slider.Minimum = MinPercent;
+            Slider.Maximum = MaxPercent;
+            Slider.TickFrequency = 10;
+            Slider.SmallChange = 1;
+            Slider.LargeChange = 10;
+            Slider.Value = percent;
+            Slider.TickStyle = TickStyle.BottomRight;
+            Slider.SetBounds(px(16f), px(76f), clientWidth - px(32f), px(45f));
+
+            var ok = new Button();
+            ok.Text = "\u786e\u5b9a";
+            ok.DialogResult = DialogResult.OK;
+            ok.SetBounds(clientWidth - px(188f), px(150f), px(88f), px(28f));
+
+            var cancel = new Button();
+            cancel.Text = "\u53d6\u6d88";
+            cancel.DialogResult = DialogResult.Cancel;
+            cancel.SetBounds(clientWidth - px(100f), px(150f), px(88f), px(28f));
+
+            AcceptButton = ok;
+            CancelButton = cancel;
+            ClientSize = new Size(clientWidth, clientHeight);
+            Controls.Add(label);
+            Controls.Add(Box);
+            Controls.Add(percentLabel);
+            Controls.Add(Slider);
+            Controls.Add(ok);
+            Controls.Add(cancel);
+
+            Shown += delegate
+            {
+                Box.Focus();
+                Box.Select(0, Box.Text.Length);
+            };
+            Box.KeyDown += delegate(object sender, KeyEventArgs e)
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.Handled = true;
+                    e.SuppressKeyPress = true;
+                    DialogResult = DialogResult.OK;
+                }
+            };
+            Box.ValueChanged += delegate { SyncFromBox(); };
+            Slider.ValueChanged += delegate { SyncFromSlider(); };
+
+            // 拖动时最多每 30ms 预览一次：重采样虽然省掉了，但每帧仍要重画整张图，
+            // 太频繁会把滑动条拖慢。停手后最后一次变化也会补上。
+            previewTimer.Interval = 30;
+            previewTimer.Tick += delegate
+            {
+                if (pendingPercent == previewedPercent)
+                {
+                    previewTimer.Stop();
+                    return;
+                }
+                previewedPercent = pendingPercent;
+                RaisePercent(pendingPercent);
+            };
+        }
+
+        public int Percent
+        {
+            get { return (int)Box.Value; }
+        }
+
+        private void SyncFromBox()
+        {
+            if (syncing) return;
+            syncing = true;
+            try
+            {
+                int value = (int)Box.Value;
+                if (Slider.Value != value) Slider.Value = value;
+            }
+            finally
+            {
+                syncing = false;
+            }
+            SchedulePreview((int)Box.Value);
+        }
+
+        private void SyncFromSlider()
+        {
+            if (syncing) return;
+            syncing = true;
+            try
+            {
+                int value = Slider.Value;
+                if ((int)Box.Value != value) Box.Value = value;
+            }
+            finally
+            {
+                syncing = false;
+            }
+            SchedulePreview(Slider.Value);
+        }
+
+        private void SchedulePreview(int value)
+        {
+            pendingPercent = value;
+            if (!previewTimer.Enabled) previewTimer.Start();
+        }
+
+        private void RaisePercent(int value)
+        {
+            Action<int> handler = PercentChanged;
+            if (handler != null) handler(value);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) previewTimer.Dispose();
+            base.Dispose(disposing);
         }
     }
 }

@@ -286,7 +286,7 @@ img {
   gap: 14px;
 }
 
-.music-box > :not(.album-artwork):not(.album-cover-lover):not(.player-xiaofu-photo) {
+.music-box > :not(.album-artwork):not(.album-cover-lover):not(.album-cover-guitarist):not(.player-xiaofu-photo) {
   position: relative;
   z-index: 1;
   width: min(78%, 540px);
@@ -416,6 +416,16 @@ img {
   transform: translateX(-50%) rotate(-6deg);
 }
 
+.album-cover-guitarist {
+  top: 2%;
+  left: 15%;
+  width: 8%;
+  background-image: url("../music/mp/吉他手-600.jpg?v=20261115");
+  background-position: center;
+  background-size: cover;
+  transform: rotate(6deg);
+}
+
 .standalone-player .album-cover {
   opacity: 0.38;
 }
@@ -519,6 +529,15 @@ img {
   border-color: rgba(166, 190, 239, 0.95);
   box-shadow: 0 0 20px rgba(114, 139, 209, 0.42), 0 12px 28px rgba(0, 0, 0, 0.65);
   transform: translateX(-50%) rotate(-6deg);
+}
+
+.standalone-player .album-cover-guitarist {
+  top: 4%;
+  left: 29%;
+  width: 20%;
+  opacity: 0.92;
+  border-color: rgba(255, 222, 230, 0.95);
+  box-shadow: 0 0 18px rgba(255, 148, 183, 0.38), 0 12px 28px rgba(0, 0, 0, 0.65);
 }
 
 .music-title {
@@ -1208,7 +1227,7 @@ audio {
     align-items: flex-start;
   }
 
-  .music-box > :not(.album-artwork):not(.album-cover-lover):not(.player-xiaofu-photo) {
+  .music-box > :not(.album-artwork):not(.album-cover-lover):not(.album-cover-guitarist):not(.player-xiaofu-photo) {
     width: min(84%, 540px);
   }
 
@@ -1270,6 +1289,15 @@ audio {
 
   .standalone-player .album-cover-carved {
     width: 23%;
+  }
+
+  .album-cover-guitarist {
+    width: 7%;
+  }
+
+  .standalone-player .album-cover-guitarist {
+    left: 31%;
+    width: 20%;
   }
 }
 
