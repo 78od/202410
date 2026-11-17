@@ -289,6 +289,22 @@
   window.addEventListener("scroll", schedulePerchUpdate, { passive: true });
   window.addEventListener("resize", schedulePerchUpdate);
 
+  // 放歌时戴上耳机，暂停或播完自己摘下来。
+  // 首页和独立播放器用的都是 #daily-song，所以两边共用这一套。
+  const audio = document.getElementById("daily-song");
+
+  function syncHeadphones() {
+    const playing = Boolean(audio) && !audio.paused && !audio.ended && audio.readyState > 0;
+    pet.classList.toggle("is-listening", playing);
+  }
+
+  if (audio) {
+    ["play", "playing", "pause", "ended", "emptied", "abort"].forEach((name) => {
+      audio.addEventListener(name, syncHeadphones);
+    });
+    syncHeadphones();
+  }
+
   function initializeWhenReady() {
     const image = pet.querySelector("img");
     if (image && !image.complete) {

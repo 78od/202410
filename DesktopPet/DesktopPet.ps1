@@ -1,4 +1,4 @@
-Add-Type -AssemblyName System.Windows.Forms
+﻿Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 $ErrorActionPreference = 'Stop'
@@ -101,6 +101,10 @@ public sealed class DesktopPuppy : Form
     private bool dragged;
     private bool poseHeld;
     private bool wearingFlower;
+    // 耳机不归菜单管：小狗自己决定什么时候戴上听一会儿、什么时候摘掉。
+    private bool wearingPhones;
+    private int phonesTicks;
+    private int nextPhones;
     private float featureEyeLeftX;
     private float featureEyeRightX;
     private float featureEyeLeftY;
@@ -172,6 +176,8 @@ public sealed class DesktopPuppy : Form
         LoadSettings();
         actionTicks = random.Next(360, 680);
         nextBlink = random.Next(75, 170);
+        // 启动后几秒就会自己戴上耳机，之后听一阵、摘一阵。
+        nextPhones = random.Next(70, 210);
 
         var menu = new ContextMenuStrip();
         menu.ShowImageMargin = false;
@@ -634,6 +640,25 @@ public sealed class DesktopPuppy : Form
         return random.Next(95, 155);
     }
 
+    // 耳机是它自己的选择：闲着的时候偶尔戴上，听一阵再自己摘掉。
+    // 走路、打盹、做动作都不打断它，只有戴上/摘下的那一刻画面会变。
+    private void UpdatePhones()
+    {
+        if (wearingPhones)
+        {
+            if (--phonesTicks <= 0)
+            {
+                wearingPhones = false;
+                nextPhones = random.Next(900, 2100);
+            }
+        }
+        else if (--nextPhones <= 0)
+        {
+            wearingPhones = true;
+            phonesTicks = random.Next(700, 1500);
+        }
+    }
+
     private void Animate(object sender, EventArgs e)
     {
         phase += pose == Pose.Sleep ? 0.045f : 0.12f;
@@ -676,6 +701,8 @@ public sealed class DesktopPuppy : Form
                 else PickTrick();
             }
         }
+
+        UpdatePhones();
 
         if (blinkTicks > 0) blinkTicks--;
         else if (--nextBlink <= 0)
@@ -1046,6 +1073,7 @@ public sealed class DesktopPuppy : Form
 
         g.DrawImage(spriteCharacter != null ? spriteCharacter : character, destination);
         g.Restore(drawingState);
+        if (wearingPhones) DrawHeadphones(g, x, y, width, height);
         DrawTrackedEyes(g, x, y, width, height);
 
         bool wearingSunglasses = pose == Pose.Shades;
@@ -1286,6 +1314,108 @@ public sealed class DesktopPuppy : Form
             g.FillEllipse(petal, cx + 19, cy - 8, 11, 11);
             g.FillEllipse(petal, cx + 8, cy - 11, 11, 11);
             g.FillEllipse(center, cx + 16, cy - 16, 9, 9);
+        }
+    }
+
+    // 耳机按素材坐标画：头梁贴着脑袋走一条贝塞尔，两侧耳罩是旋转后的椭圆，
+    // 和预览图里那版蓝色耳机是同一套比例，换素材也还能对上脸。
+    private void DrawHeadphones(Graphics g, float x, float y, float width, float height)
+    {
+        GraphicsState state = BeginCharacterSpace(g, x, y, width, height);
+
+        using (var bandPath = new GraphicsPath())
+        {
+            bandPath.AddBezier(146f, 330f, 148f, 180f, 244f, 128f, 350f, 128f);
+            bandPath.AddBezier(350f, 128f, 456f, 128f, 552f, 188f, 552f, 318f);
+
+            using (var edge = new Pen(Color.FromArgb(27, 42, 58), 44f))
+            {
+                edge.StartCap = LineCap.Round;
+                edge.EndCap = LineCap.Round;
+                g.DrawPath(edge, bandPath);
+            }
+
+            using (var bandBrush = new LinearGradientBrush(
+                       new PointF(0f, 118f), new PointF(0f, 336f),
+                       Color.FromArgb(168, 220, 255), Color.FromArgb(47, 127, 212)))
+            using (var fill = new Pen(bandBrush, 31f))
+            {
+                var bandBlend = new ColorBlend(3);
+                bandBlend.Colors = new[]
+                {
+                    Color.FromArgb(168, 220, 255),
+                    Color.FromArgb(90, 169, 255),
+                    Color.FromArgb(47, 127, 212)
+                };
+                bandBlend.Positions = new[] { 0f, 0.5f, 1f };
+                bandBrush.InterpolationColors = bandBlend;
+                fill.StartCap = LineCap.Round;
+                fill.EndCap = LineCap.Round;
+                g.DrawPath(fill, bandPath);
+            }
+        }
+
+        DrawHeadphoneCup(g, 134f, 342f, -9f);
+        DrawHeadphoneCup(g, 568f, 328f, 9f);
+        // 音符在缩小到 60% 以下时会糊成一点点杂色，只在放到比较大时才飘。
+        if (sizeScale >= 0.8f) DrawListeningNotes(g);
+
+        g.Restore(state);
+    }
+
+    private void DrawHeadphoneCup(Graphics g, float cx, float cy, float angle)
+    {
+        GraphicsState state = g.Save();
+        g.TranslateTransform(cx, cy);
+        g.RotateTransform(angle);
+
+        using (var rim = new SolidBrush(Color.FromArgb(27, 42, 58)))
+        using (var plush = new SolidBrush(Color.FromArgb(238, 245, 252)))
+        using (var highlight = new SolidBrush(Color.FromArgb(58, 255, 255, 255)))
+        using (var paw = new SolidBrush(Color.FromArgb(244, 201, 93)))
+        {
+            g.FillEllipse(rim, -73f, -83f, 146f, 174f);
+            g.FillEllipse(plush, -64f, -78f, 128f, 156f);
+
+            using (var shellBrush = new LinearGradientBrush(
+                       new PointF(-51f, -65f), new PointF(51f, 65f),
+                       Color.FromArgb(183, 226, 255), Color.FromArgb(39, 105, 184)))
+            {
+                var shellBlend = new ColorBlend(3);
+                shellBlend.Colors = new[]
+                {
+                    Color.FromArgb(183, 226, 255),
+                    Color.FromArgb(90, 169, 255),
+                    Color.FromArgb(39, 105, 184)
+                };
+                shellBlend.Positions = new[] { 0f, 0.45f, 1f };
+                shellBrush.InterpolationColors = shellBlend;
+                g.FillEllipse(shellBrush, -51f, -65f, 102f, 130f);
+            }
+
+            g.FillEllipse(highlight, -34f, -48f, 42f, 58f);
+
+            g.FillEllipse(paw, -14f, 5f, 28f, 22f);
+            g.FillEllipse(paw, -21f, -7f, 12f, 12f);
+            g.FillEllipse(paw, -6f, -13f, 12f, 12f);
+            g.FillEllipse(paw, 9f, -7f, 12f, 12f);
+        }
+
+        g.Restore(state);
+    }
+
+    // 戴着耳机时飘两个小音符，不然缩到 60% 大小根本看不出它在听歌。
+    private void DrawListeningNotes(Graphics g)
+    {
+        float bob = (float)Math.Sin(phase * 1.4f) * 5f;
+        float W = character.Width;
+        float H = character.Height;
+        using (var font = new Font("Segoe UI Symbol", 34f, FontStyle.Bold))
+        using (var blue = new SolidBrush(Color.FromArgb(135, 122, 190, 245)))
+        using (var gold = new SolidBrush(Color.FromArgb(115, 244, 201, 93)))
+        {
+            g.DrawString("\u266a", font, blue, W * 0.865f, H * 0.055f + bob);
+            g.DrawString("\u266b", font, gold, W * 0.95f, H * 0.205f - bob * 0.7f);
         }
     }
 

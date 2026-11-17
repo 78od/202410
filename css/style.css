@@ -1405,6 +1405,36 @@ audio {
   transform: translate(-50%, -50%) translate(var(--pet-look-x), var(--pet-look-y));
 }
 
+/* 耳机图层：放歌时淡入，暂停时摘下。盖在图上、眼珠遮罩下面 */
+.site-pet-phones {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-9%) scale(1.05);
+  transform-origin: 50% 28%;
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.22, 0.9, 0.28, 1.25);
+}
+
+.site-pet-phones svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.site-pet.is-listening .site-pet-phones {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-pet-phones {
+    transition: none;
+    transform: none;
+  }
+}
+
 /* 拖动时暂停漂浮动画，光标改为抓取状态 */
 .site-pet.is-dragging {
   z-index: 60;
