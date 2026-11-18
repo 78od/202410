@@ -101,10 +101,7 @@ public sealed class DesktopPuppy : Form
     private bool dragged;
     private bool poseHeld;
     private bool wearingFlower;
-    // 耳机不归菜单管：小狗自己决定什么时候戴上听一会儿、什么时候摘掉。
     private bool wearingPhones;
-    private int phonesTicks;
-    private int nextPhones;
     private float featureEyeLeftX;
     private float featureEyeRightX;
     private float featureEyeLeftY;
@@ -176,8 +173,6 @@ public sealed class DesktopPuppy : Form
         LoadSettings();
         actionTicks = random.Next(360, 680);
         nextBlink = random.Next(75, 170);
-        // 启动后几秒就会自己戴上耳机，之后听一阵、摘一阵。
-        nextPhones = random.Next(70, 210);
 
         var menu = new ContextMenuStrip();
         menu.ShowImageMargin = false;
@@ -199,6 +194,16 @@ public sealed class DesktopPuppy : Form
             RenderFrame();
         };
         actionMenu.DropDownItems.Add(flowerItem);
+        var phonesItem = new ToolStripMenuItem("\u6234\u8033\u673a\uff08\u5e38\u9a7b\uff09");
+        phonesItem.CheckOnClick = true;
+        phonesItem.Checked = wearingPhones;
+        phonesItem.CheckedChanged += delegate
+        {
+            wearingPhones = phonesItem.Checked;
+            SaveSettings();
+            RenderFrame();
+        };
+        actionMenu.DropDownItems.Add(phonesItem);
         actionMenu.DropDownItems.Add("\u6325\u722a", null, delegate { StartTrick(Pose.Wave); });
         actionMenu.DropDownItems.Add("\u4f38\u61d2\u8170", null, delegate { StartTrick(Pose.Stretch); });
         actionMenu.DropDownItems.Add("\u9001\u6735\u5c0f\u82b1", null, delegate { StartTrick(Pose.Rose); });
@@ -424,6 +429,10 @@ public sealed class DesktopPuppy : Form
                 if (values.TryGetValue("flower", out flowerValue))
                     wearingFlower = flowerValue == "1";
 
+                string phonesValue;
+                if (values.TryGetValue("phones", out phonesValue))
+                    wearingPhones = phonesValue == "1";
+
                 int x;
                 int y;
                 if (values.TryGetValue("x", out value) &&
@@ -483,6 +492,7 @@ public sealed class DesktopPuppy : Form
                 "y=" + Top.ToString(CultureInfo.InvariantCulture),
                 "scale=" + userScale.ToString("0.###", CultureInfo.InvariantCulture),
                 "flower=" + (wearingFlower ? "1" : "0"),
+                "phones=" + (wearingPhones ? "1" : "0"),
                 "dpiAware=1"
             };
             File.WriteAllLines(settingsPath, lines, Encoding.UTF8);
@@ -640,25 +650,6 @@ public sealed class DesktopPuppy : Form
         return random.Next(95, 155);
     }
 
-    // 耳机是它自己的选择：闲着的时候偶尔戴上，听一阵再自己摘掉。
-    // 走路、打盹、做动作都不打断它，只有戴上/摘下的那一刻画面会变。
-    private void UpdatePhones()
-    {
-        if (wearingPhones)
-        {
-            if (--phonesTicks <= 0)
-            {
-                wearingPhones = false;
-                nextPhones = random.Next(900, 2100);
-            }
-        }
-        else if (--nextPhones <= 0)
-        {
-            wearingPhones = true;
-            phonesTicks = random.Next(700, 1500);
-        }
-    }
-
     private void Animate(object sender, EventArgs e)
     {
         phase += pose == Pose.Sleep ? 0.045f : 0.12f;
@@ -701,8 +692,6 @@ public sealed class DesktopPuppy : Form
                 else PickTrick();
             }
         }
-
-        UpdatePhones();
 
         if (blinkTicks > 0) blinkTicks--;
         else if (--nextBlink <= 0)
